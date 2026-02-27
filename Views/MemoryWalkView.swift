@@ -3,8 +3,6 @@ import AVFoundation
 
 // ─────────────────────────────────────────────
 // MARK: - UIImage EXIF orientation fix
-// Photos taken on iPhone carry rotation in EXIF metadata.
-// Drawing into a new context bakes the orientation into pixels.
 // ─────────────────────────────────────────────
 extension UIImage {
     func fixedOrientation() -> UIImage {
@@ -45,7 +43,6 @@ struct CameraPicker: UIViewControllerRepresentable {
             didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
         ) {
             if let raw = info[.originalImage] as? UIImage {
-                // Fix EXIF rotation so portrait photos are right-side up
                 parent.image = raw.fixedOrientation()
             }
             parent.dismiss()
@@ -58,7 +55,7 @@ struct CameraPicker: UIViewControllerRepresentable {
 }
 
 // ─────────────────────────────────────────────
-// MARK: - Memory Walk View (patient entry point)
+// MARK: - Memory Walk View
 // ─────────────────────────────────────────────
 struct MemoryWalkView: View {
     @EnvironmentObject var memoryWalkStore: MemoryWalkStore
@@ -192,7 +189,6 @@ struct MemoryWalkView: View {
 
 // ─────────────────────────────────────────────
 // MARK: - Room Card
-// Taller card (240pt) with full-width fill + gradient overlay
 // ─────────────────────────────────────────────
 struct RoomCardView: View {
     let room: MemoryRoom
@@ -309,7 +305,7 @@ struct EmptyWalkView: View {
 }
 
 // ─────────────────────────────────────────────
-// MARK: - Room Detail View (patient-facing)
+// MARK: - Room Detail View
 // ─────────────────────────────────────────────
 struct RoomDetailView: View {
     let room: MemoryRoom
@@ -347,7 +343,6 @@ struct RoomDetailView: View {
 
                         Spacer()
 
-                        // ⋯ menu — Edit or Delete
                         Menu {
                             Button { showEditMode = true } label: {
                                 Label("Edit Reminders", systemImage: "pencil")
@@ -465,7 +460,6 @@ struct RoomDetailView: View {
             }
             .environmentObject(onboardingStore)
         }
-        // ── Delete confirmation dialog ──
         .confirmationDialog(
             "Delete \"\(room.roomName)\"?",
             isPresented: $showDeleteConfirm,
@@ -483,7 +477,7 @@ struct RoomDetailView: View {
 }
 
 // ─────────────────────────────────────────────
-// MARK: - Pin View (clean glowing dot, no emoji)
+// MARK: - Pin View
 // ─────────────────────────────────────────────
 struct PinView: View {
     let isSelected: Bool
@@ -652,16 +646,23 @@ struct ReminderCardView: View {
 
     func toggleVoice() {
         if isPlaying {
-            player?.stop(); isPlaying = false
+            player?.stop()
+            isPlaying = false
         } else if let url = anchor.voiceURL {
-            player = try? AVAudioPlayer(contentsOf: url)
-            player?.play(); isPlaying = true
+            do {
+                player = try AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+                player?.play()
+                isPlaying = true
+            } catch {
+                print("ReminderCardView playback error: \(error)")
+            }
         }
     }
 }
 
 // ─────────────────────────────────────────────
-// MARK: - Room Setup View (caregiver mode)
+// MARK: - Room Setup View
 // ─────────────────────────────────────────────
 struct RoomSetupView: View {
     var existingRoom: MemoryRoom? = nil
@@ -750,7 +751,7 @@ struct RoomSetupView: View {
     // ── Step 1: Photo ──
     var photoStep: some View {
         VStack(spacing: 32) {
-            Text("Choose a photo of a room\nin your home")
+            Text("Choose a photo of your surroundings")
                 .font(.custom("Georgia", size: 18))
                 .foregroundColor(Color(hex: "5c4a3a"))
                 .multilineTextAlignment(.center)
@@ -960,7 +961,7 @@ struct RoomSetupView: View {
 }
 
 // ─────────────────────────────────────────────
-// MARK: - Setup Pin View (edit mode dot)
+// MARK: - Setup Pin View
 // ─────────────────────────────────────────────
 struct SetupPinView: View {
     var body: some View {
@@ -1167,22 +1168,33 @@ struct AnchorEditSheet: View {
     }
 
     func startRecording() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, mode: .default)
-        try? session.setActive(true)
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("anchor_\(UUID().uuidString).m4a")
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 12000,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
-        audioRecorder = try? AVAudioRecorder(url: url, settings: settings)
-        audioRecorder?.record()
-        recordingURL = url
-        isRecording = true
-        recordingDone = false
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+            guard granted else {
+                print("Mic permission denied")
+                return
+            }
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("anchor_\(UUID().uuidString).m4a")
+            let settings: [String: Any] = [
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: 44100,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
+            ]
+            do {
+                let recorder = try AVAudioRecorder(url: url, settings: settings)
+                recorder.prepareToRecord()
+                recorder.record()
+                DispatchQueue.main.async {
+                    self.audioRecorder = recorder
+                    self.recordingURL = url
+                    self.isRecording = true
+                    self.recordingDone = false
+                }
+            } catch {
+                print("Recording failed: \(error)")
+            }
+        }
     }
 
     func stopRecording() {
@@ -1192,10 +1204,18 @@ struct AnchorEditSheet: View {
     }
 
     func togglePlayback() {
-        if isPlaying { audioPlayer?.stop(); isPlaying = false }
-        else if let url = recordingURL {
-            audioPlayer = try? AVAudioPlayer(contentsOf: url)
-            audioPlayer?.play(); isPlaying = true
+        if isPlaying {
+            audioPlayer?.stop()
+            isPlaying = false
+        } else if let url = recordingURL {
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: url)
+                audioPlayer?.prepareToPlay()
+                audioPlayer?.play()
+                isPlaying = true
+            } catch {
+                print("AnchorEditSheet playback error: \(error)")
+            }
         }
     }
 }

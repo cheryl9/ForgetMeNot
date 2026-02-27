@@ -594,11 +594,21 @@ struct VoicePlayerView: View {
     }
 
     func togglePlay() {
-        if isPlaying { player?.stop(); isPlaying = false }
-        else {
+        if isPlaying {
+            player?.stop()
+            isPlaying = false
+        } else {
             guard let data = voiceData else { return }
-            player = try? AVAudioPlayer(data: data)
-            player?.play(); isPlaying = true
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                player = try AVAudioPlayer(data: data)
+                player?.prepareToPlay()
+                player?.play()
+                isPlaying = true
+            } catch {
+                print("VoicePlayerView: playback failed: \(error)")
+            }
         }
     }
 }

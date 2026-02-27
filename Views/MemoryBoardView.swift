@@ -66,8 +66,9 @@ struct MemoryBoardView: View {
     private let rotations: [Double] = [-2.0, 1.5, -1.0, 2.0, -1.5, 1.0, -2.0, 1.5]
 
     private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
     ]
 
     var body: some View {
@@ -82,7 +83,7 @@ struct MemoryBoardView: View {
 
             VStack(spacing: 0) {
 
-                // ─── HEADER (Now outside ScrollView) ───
+                // ─── HEADER ───
                 HStack {
                     Button { dismiss() } label: {
                         Image(systemName: "chevron.left")
@@ -111,7 +112,7 @@ struct MemoryBoardView: View {
                     }
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 120)   // 👈 Adjust this number to move header down
+                .padding(.top, 120)
                 .padding(.bottom, 20)
 
                 // ─── SCROLLING CONTENT ───
@@ -136,7 +137,7 @@ struct MemoryBoardView: View {
                         }
                         .padding(.horizontal, 40)
                     } else {
-                        LazyVGrid(columns: columns, spacing: 4) {
+                        LazyVGrid(columns: columns, spacing: 0) {
                             ForEach(Array(memoryBoardStore.entries.enumerated()), id: \.element.id) { idx, entry in
                                 MemorySignCard(
                                     entry: entry,
@@ -145,7 +146,7 @@ struct MemoryBoardView: View {
                                 .onTapGesture { editingEntry = entry }
                             }
                         }
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 4)
                         .padding(.bottom, 60)
                     }
                 }
@@ -174,31 +175,29 @@ struct MemorySignCard: View {
     @State private var audioPlayer: AVAudioPlayer?
 
     var body: some View {
-        ZStack {
-            // Sign image is the whole card background
-            Image("memory_sign")
-                .resizable()
-                .scaledToFit()
+        GeometryReader { geo in
+            ZStack {
+                Image("memory_sign")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: geo.size.width, height: geo.size.height)
 
-            // Content overlaid inside the sign frame - centered
-            VStack(spacing: 0) {
-                Spacer()
-                
-                VStack(spacing: 8) {
-                    // Photo
+                // The sign image has a hanging chain at top (~30% of height).
+                // The oval board occupies the lower portion.
+                // offset(y: 14%) moves content down from center into the oval.
+                VStack(spacing: 6) {
                     if entry.entryType == .photo, let img = loadedImage {
                         Image(uiImage: img)
                             .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: 140)
-                            .frame(maxHeight: 65)
+                            .scaledToFill()
+                            .frame(width: geo.size.width * 0.52, height: geo.size.height * 0.28)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .clipped()
                     } else if entry.entryType == .voice {
                         Button { toggleVoice() } label: {
                             VStack(spacing: 3) {
                                 Image(systemName: isPlayingVoice ? "stop.circle.fill" : "play.circle.fill")
-                                    .font(.system(size: 28))
+                                    .font(.system(size: geo.size.width * 0.14))
                                     .foregroundColor(Color(hex: "7ba7bc"))
                                 Text(isPlayingVoice ? "Stop" : "Play")
                                     .font(.custom("Georgia", size: 10))
@@ -208,17 +207,15 @@ struct MemorySignCard: View {
                         .buttonStyle(.plain)
                     }
 
-                    // Text note
                     if !entry.text.isEmpty {
                         Text(entry.text)
                             .font(.custom("Georgia", size: 11))
                             .foregroundColor(Color(hex: "3a2a1a"))
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                            .padding(.horizontal, 20)
+                            .frame(width: geo.size.width * 0.65)
                     }
 
-                    // Person tag
                     if !entry.personName.isEmpty {
                         Text("— \(entry.personName)")
                             .font(.custom("Georgia", size: 10))
@@ -226,12 +223,10 @@ struct MemorySignCard: View {
                             .foregroundColor(Color(hex: "7ba7bc"))
                     }
                 }
-                .frame(maxWidth: .infinity)
-                
-                Spacer()
+                .offset(y: geo.size.height * 0.14)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .aspectRatio(0.85, contentMode: .fit)
         .rotationEffect(.degrees(rotation))
         .onAppear {
             if entry.entryType == .photo, let fn = entry.imageFilename {
@@ -248,9 +243,14 @@ struct MemorySignCard: View {
             audioPlayer?.stop()
             isPlayingVoice = false
         } else if let url = VoiceFileStorage.url(for: entry.voiceFilename) {
-            audioPlayer = try? AVAudioPlayer(contentsOf: url)
-            audioPlayer?.play()
-            isPlayingVoice = true
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: url)
+                audioPlayer?.prepareToPlay()
+                audioPlayer?.play()
+                isPlayingVoice = true
+            } catch {
+                print("MemorySignCard playback error: \(error)")
+            }
         }
     }
 }
@@ -459,22 +459,33 @@ struct MemoryCardEditView: View {
     }
 
     func startRecording() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, mode: .default)
-        try? session.setActive(true)
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("memory_\(UUID().uuidString).m4a")
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 12000,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
-        audioRecorder = try? AVAudioRecorder(url: url, settings: settings)
-        audioRecorder?.record()
-        recordingURL = url
-        isRecording = true
-        recordingDone = false
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+            guard granted else {
+                print("Mic permission denied")
+                return
+            }
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("memory_\(UUID().uuidString).m4a")
+            let settings: [String: Any] = [
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: 44100,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
+            ]
+            do {
+                let recorder = try AVAudioRecorder(url: url, settings: settings)
+                recorder.prepareToRecord()
+                recorder.record()
+                DispatchQueue.main.async {
+                    self.audioRecorder = recorder
+                    self.recordingURL = url
+                    self.isRecording = true
+                    self.recordingDone = false
+                }
+            } catch {
+                print("Recording failed: \(error)")
+            }
+        }
     }
 
     func stopRecording() {
@@ -488,9 +499,14 @@ struct MemoryCardEditView: View {
             audioPlayer?.stop()
             isPlaying = false
         } else if let url = recordingURL {
-            audioPlayer = try? AVAudioPlayer(contentsOf: url)
-            audioPlayer?.play()
-            isPlaying = true
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: url)
+                audioPlayer?.prepareToPlay()
+                audioPlayer?.play()
+                isPlaying = true
+            } catch {
+                print("Playback failed: \(error)")
+            }
         }
     }
 }
