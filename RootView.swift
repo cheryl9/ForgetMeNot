@@ -7,6 +7,7 @@ struct RootView: View {
     @EnvironmentObject var memoryBoardStore: MemoryBoardStore
     @EnvironmentObject var levelStore: LevelStore
     @EnvironmentObject var shopStore: ShopStore
+    @EnvironmentObject var memoryWalkStore: MemoryWalkStore
 
     var body: some View {
         Group {
@@ -29,6 +30,7 @@ struct RootView: View {
                 memoryBoardStore.load(for: username)
                 levelStore.load(for: username)
                 shopStore.load(for: username)
+                memoryWalkStore.load(for: username) 
             }
         }
     }

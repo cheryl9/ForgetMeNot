@@ -1,9 +1,11 @@
 import SwiftUI
 import AVFoundation
 
+// MARK: - Quiz View
 struct QuizView: View {
     let level: Int
     let onExitToHome: (() -> Void)?
+
     @EnvironmentObject var memoryStore: MemoryStore
     @EnvironmentObject var onboardingStore: OnboardingStore
     @EnvironmentObject var levelStore: LevelStore
@@ -37,11 +39,9 @@ struct QuizView: View {
 
             ZStack {
                 Image("garden_background")
-                    .resizable()
-                    .scaledToFill()
+                    .resizable().scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
-                    .ignoresSafeArea()
+                    .clipped().ignoresSafeArea()
                 Color.white.opacity(0.45).ignoresSafeArea()
 
                 if quizComplete {
@@ -91,22 +91,15 @@ struct QuizView: View {
                                 .padding(.horizontal, 20)
                                 .padding(.top, geo.safeAreaInsets.top + 16)
                                 .padding(.bottom, 12)
-
                             Spacer(minLength: 0)
-
-                            questionCard(
-                                q: q,
-                                imgSize: isIPad ? 160 : 120,
-                                fontSize: isIPad ? 22 : 18
-                            )
-                            .padding(.horizontal, 20)
-                            .scaleEffect(appeared ? 1 : 0.92)
-                            .opacity(appeared ? 1 : 0)
-
+                            questionCard(q: q, imgSize: isIPad ? 160 : 120, fontSize: isIPad ? 22 : 18)
+                                .padding(.horizontal, 20)
+                                .scaleEffect(appeared ? 1 : 0.92)
+                                .opacity(appeared ? 1 : 0)
                             Spacer(minLength: 0)
-
                             answerGrid(q: q, columns: 2)
                                 .padding(.horizontal, 20)
+                                // FIX: was .padding(.bottom:  — colon typo
                                 .padding(.bottom, (geo.safeAreaInsets.bottom > 0 ? geo.safeAreaInsets.bottom : 20) + (isIPad ? 32 : 16))
                         }
                         .frame(width: contentWidth)
@@ -115,6 +108,7 @@ struct QuizView: View {
                     }
 
                 } else {
+                    // Not enough people
                     VStack(spacing: 20) {
                         Image(systemName: "person.3.fill")
                             .font(.system(size: 48))
@@ -129,8 +123,7 @@ struct QuizView: View {
                         Button("Go Back") { dismiss() }
                             .font(.custom("Georgia", size: 15))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 28)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 28).padding(.vertical, 12)
                             .background(Capsule().fill(Color(hex: "a8c5a0")))
                     }
                     .padding(32)
@@ -142,28 +135,26 @@ struct QuizView: View {
         }
         .ignoresSafeArea()
         .onAppear {
-            questions = QuizGenerator.generateQuestions(from: onboardingStore.people, count: questionCount)
+            questions = QuizGenerator.generateQuestions(
+                from: onboardingStore.people,
+                memoryEntries: memoryBoardStore.entries,
+                count: questionCount
+            )
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { appeared = true }
         }
         .sheet(isPresented: $showMemoryPrompt) {
-            MemoryPromptView(questions: answeredWrong) { entry in
-                memoryBoardStore.add(entry)
-            }
+            MemoryPromptView(questions: answeredWrong) { memoryBoardStore.add($0) }
         }
     }
 
     func backToGarden() {
-        if let onExitToHome = onExitToHome {
-            onExitToHome()
-        } else {
-            dismiss()
-        }
+        if let cb = onExitToHome { cb() } else { dismiss() }
     }
 
     // MARK: - Top Bar
     var topBar: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button { dismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 30))
                     .foregroundColor(Color(hex: "aaaaaa"))
@@ -176,11 +167,9 @@ struct QuizView: View {
                 ForEach(0..<questions.count, id: \.self) { i in
                     Circle()
                         .fill(
-                            i < currentIndex
-                                ? Color(hex: "a8c5a0")
-                                : i == currentIndex
-                                    ? Color(hex: "7ba7bc")
-                                    : Color(hex: "dddddd")
+                            i < currentIndex  ? Color(hex: "a8c5a0") :
+                            i == currentIndex ? Color(hex: "7ba7bc") :
+                                                Color(hex: "dddddd")
                         )
                         .frame(width: 8, height: 8)
                 }
@@ -198,8 +187,7 @@ struct QuizView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(Color(hex: "7ba7bc"))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 14).padding(.vertical, 8)
             .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.15)))
             .frame(minWidth: 64)
         }
@@ -218,10 +206,17 @@ struct QuizView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 8)
 
-            if let img = q.person.image {
+            // Memory image has priority for memory questions
+            if let memImg = q.memoryImage {
+                Image(uiImage: memImg)
+                    .resizable().scaledToFill()
+                    .frame(width: imgSize * 1.6, height: imgSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white, lineWidth: 3))
+                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            } else if let img = q.person.image {
                 Image(uiImage: img)
-                    .resizable()
-                    .scaledToFill()
+                    .resizable().scaledToFill()
                     .frame(width: imgSize, height: imgSize)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
@@ -237,9 +232,19 @@ struct QuizView: View {
                     )
                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
             }
+
+            // Badge for memory-board questions
+            if q.type == .memoryWho || q.type == .memoryRecall {
+                HStack(spacing: 4) {
+                    Image(systemName: "pin.fill").font(.system(size: 10))
+                    Text("From Memory Board").font(.custom("Georgia", size: 11))
+                }
+                .foregroundColor(Color(hex: "7ba7bc"))
+                .padding(.horizontal, 10).padding(.vertical, 4)
+                .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.1)))
+            }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
+        .padding(.horizontal, 24).padding(.vertical, 20)
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 28)
@@ -275,7 +280,6 @@ struct QuizView: View {
     func selectAnswer(_ choice: String, correct: String) {
         guard selectedAnswer == nil else { return }
         selectedAnswer = choice
-
         if choice == correct {
             score += 1
             dropletsEarned += 1
@@ -284,10 +288,7 @@ struct QuizView: View {
         } else {
             if let q = current { answeredWrong.append(q) }
         }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            advanceQuestion()
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { advanceQuestion() }
     }
 
     func advanceQuestion() {
@@ -304,160 +305,6 @@ struct QuizView: View {
             levelStore.completeLevel(level)
             dropletStore.add(dropletsEarned)
             withAnimation { quizComplete = true }
-        }
-    }
-}
-
-// MARK: - Memory Prompt
-struct MemoryPromptView: View {
-    @Environment(\.dismiss) var dismiss
-    let questions: [QuizQuestion]
-    let onSave: (MemoryBoardEntry) -> Void
-
-    @State private var text = ""
-    @State private var selectedImage: UIImage?
-    @State private var showPhotoPicker = false
-    @State private var selectedPersonName = ""
-
-    var body: some View {
-        ZStack {
-            // Solid background — no more bleed-through
-            Color(hex: "f7f3ee").ignoresSafeArea()
-
-            // Subtle garden texture on top
-            Image("garden_background")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-                .opacity(0.08)
-
-            VStack(spacing: 0) {
-                // Top bar
-                HStack {
-                    Spacer()
-                    Button("Skip") { dismiss() }
-                        .font(.custom("Georgia", size: 15))
-                        .foregroundColor(Color(hex: "aaaaaa"))
-                        .padding(.horizontal, 24)
-                        .padding(.top, 20)
-                }
-
-                Spacer()
-
-                // Main content — vertically centered
-                VStack(spacing: 22) {
-
-                    // Title
-                    VStack(spacing: 6) {
-                        Text("Keep a Memory")
-                            .font(.custom("Snell Roundhand", size: 34))
-                            .foregroundColor(Color(hex: "5c4a3a"))
-                        Text("Write something you'd like to remember")
-                            .font(.custom("Georgia", size: 14))
-                            .foregroundColor(Color(hex: "9a8a7a"))
-                            .multilineTextAlignment(.center)
-                    }
-
-                    // Person pills
-                    if !questions.isEmpty {
-                        VStack(spacing: 8) {
-                            Text("About who?")
-                                .font(.custom("Georgia", size: 13))
-                                .foregroundColor(Color(hex: "b0a090"))
-                            HStack(spacing: 10) {
-                                ForEach(Array(Set(questions.map { $0.person.name })), id: \.self) { name in
-                                    Button(action: { selectedPersonName = name }) {
-                                        Text(name)
-                                            .font(.custom("Georgia", size: 14))
-                                            .foregroundColor(selectedPersonName == name ? .white : Color(hex: "7ba7bc"))
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 8)
-                                            .background(
-                                                Capsule().fill(selectedPersonName == name
-                                                    ? Color(hex: "7ba7bc")
-                                                    : Color(hex: "7ba7bc").opacity(0.12))
-                                            )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Photo picker
-                    Button { showPhotoPicker = true } label: {
-                        if let img = selectedImage {
-                            Image(uiImage: img)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 140)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 3)
-                        } else {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(hex: "ede8e0"))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 80)
-                                .overlay(
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "photo.badge.plus")
-                                            .foregroundColor(Color(hex: "b0a090"))
-                                        Text("Add a photo (optional)")
-                                            .font(.custom("Georgia", size: 14))
-                                            .foregroundColor(Color(hex: "b0a090"))
-                                    }
-                                )
-                        }
-                    }
-
-                    // Text field
-                    TextField("Write your memory here...", text: $text, axis: .vertical)
-                        .font(.custom("Georgia", size: 16))
-                        .foregroundColor(Color(hex: "333333"))
-                        .lineLimit(3...5)
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(Color(hex: "ede8e0"))
-                        )
-
-                    // Save button
-                    Button {
-                        var entry = MemoryBoardEntry()
-                        entry.text = text
-                        entry.personName = selectedPersonName
-                        if let img = selectedImage {
-                            entry.imageFilename = ImageFileStorage.save(img, compressionQuality: 0.5)
-                        }
-                        entry.createdFrom = "quiz_wrong"
-                        onSave(entry)
-                        dismiss()
-                    } label: {
-                        Text("Save to Memory Board")
-                            .font(.custom("Georgia", size: 16))
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(
-                                        text.isEmpty
-                                        ? LinearGradient(colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing)
-                                        : LinearGradient(colors: [Color(hex: "7ba7bc"), Color(hex: "a8c5a0")], startPoint: .leading, endPoint: .trailing)
-                                    )
-                            )
-                    }
-                    .disabled(text.isEmpty)
-                }
-                .padding(.horizontal, 32)
-                .frame(maxWidth: 500)
-
-                Spacer()
-            }
-        }
-        .sheet(isPresented: $showPhotoPicker) {
-            ImagePicker(image: $selectedImage)
         }
     }
 }
@@ -490,10 +337,8 @@ struct AnswerButton: View {
                 .fontWeight(.semibold)
                 .foregroundColor(textColor)
                 .multilineTextAlignment(.center)
-                .padding(.vertical, 16)
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 60)
+                .padding(.vertical, 16).padding(.horizontal, 12)
+                .frame(maxWidth: .infinity).frame(minHeight: 60)
                 .background(
                     Capsule()
                         .fill(bgColor)
@@ -503,6 +348,7 @@ struct AnswerButton: View {
         }
         .scaleEffect(pressed ? 0.93 : 1.0)
         .animation(.spring(response: 0.25, dampingFraction: 0.5), value: state)
+        .disabled(state != .idle)
     }
 }
 
@@ -517,16 +363,16 @@ struct QuizCompleteView: View {
     var isPerfect: Bool { score == total }
 
     var message: String {
-        let r = Double(score) / Double(total)
-        if r == 1.0 { return "Perfect! All memories recalled!" }
-        if r >= 0.75 { return "Great job! Keep it up!" }
-        if r >= 0.5 { return "Good effort! Let's try again!" }
-        return "Keep practicing, you're doing great!"
+        let r = Double(score) / Double(max(total, 1))
+        if r == 1.0 { return "Perfect! All memories recalled! 🌸" }
+        if r >= 0.75 { return "Great job! Keep it up! 🌷" }
+        if r >= 0.5  { return "Good effort! Let's try again! 🌱" }
+        return "Keep practicing, you're doing great! 💪"
     }
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("Level Complete!")
+            Text("Quiz Complete!")
                 .font(.custom("Snell Roundhand", size: 32))
                 .foregroundColor(Color(hex: "7ba7bc"))
             Text("\(score) / \(total) correct")
@@ -534,15 +380,13 @@ struct QuizCompleteView: View {
                 .foregroundColor(Color(hex: "555555"))
             HStack(spacing: 8) {
                 Text("💧 × \(dropletsEarned)")
-                    .font(.custom("Georgia", size: 18))
-                    .fontWeight(.semibold)
+                    .font(.custom("Georgia", size: 18)).fontWeight(.semibold)
                     .foregroundColor(Color(hex: "7ba7bc"))
                 Text("earned!")
                     .font(.custom("Georgia", size: 15))
                     .foregroundColor(Color(hex: "888888"))
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 18).padding(.vertical, 9)
             .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.12)))
 
             Text(message)
@@ -553,28 +397,25 @@ struct QuizCompleteView: View {
             VStack(spacing: 10) {
                 Button(action: onDone) {
                     Text("Back to Garden")
-                        .font(.custom("Snell Roundhand", size: 20))
-                        .fontWeight(.bold)
+                        .font(.custom("Snell Roundhand", size: 20)).fontWeight(.bold)
                         .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
                         .background(
-                            Capsule()
-                                .fill(LinearGradient(
+                            Capsule().fill(
+                                LinearGradient(
                                     colors: [Color(hex: "a8c5a0"), Color(hex: "7eb8a4")],
                                     startPoint: .leading, endPoint: .trailing
-                                ))
-                                .shadow(color: Color(hex: "a8c5a0").opacity(0.4), radius: 8, x: 0, y: 4)
+                                )
+                            )
+                            .shadow(color: Color(hex: "a8c5a0").opacity(0.4), radius: 8, x: 0, y: 4)
                         )
                 }
-
                 if !isPerfect {
                     Button(action: onMemoryBoard) {
                         Text("Write a Memory")
                             .font(.custom("Georgia", size: 15))
                             .foregroundColor(Color(hex: "5c4a3a"))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                            .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(
                                 Capsule()
                                     .fill(Color(hex: "7ba7bc").opacity(0.1))
@@ -591,12 +432,147 @@ struct QuizCompleteView: View {
                 .background(RoundedRectangle(cornerRadius: 32).fill(.ultraThinMaterial))
                 .shadow(color: .black.opacity(0.1), radius: 24, x: 0, y: 10)
         )
-        .padding(.horizontal, 24)
-        .padding(.vertical, 50)
+        .padding(.horizontal, 24).padding(.vertical, 50)
     }
 }
 
-// MARK: - Voice Player View
+// MARK: - Memory Prompt View (post-quiz, shown when questions were answered wrong)
+struct MemoryPromptView: View {
+    @Environment(\.dismiss) var dismiss
+    let questions: [QuizQuestion]
+    let onSave: (MemoryBoardEntry) -> Void
+
+    @State private var text = ""
+    @State private var selectedImage: UIImage?
+    @State private var showPhotoPicker = false
+    @State private var selectedPersonName = ""
+
+    var uniqueNames: [String] {
+        Array(Set(questions.map { $0.person.name })).filter { !$0.isEmpty }
+    }
+
+    var canSave: Bool { !text.isEmpty }
+
+    var body: some View {
+        ZStack {
+            Color(hex: "f7f3ee").ignoresSafeArea()
+            Image("garden_background")
+                .resizable().scaledToFill().ignoresSafeArea().opacity(0.08)
+
+            VStack(spacing: 0) {
+                HStack {
+                    Spacer()
+                    Button("Skip") { dismiss() }
+                        .font(.custom("Georgia", size: 15))
+                        .foregroundColor(Color(hex: "aaaaaa"))
+                        .padding(.horizontal, 24).padding(.top, 20)
+                }
+
+                Spacer()
+
+                VStack(spacing: 20) {
+                    VStack(spacing: 6) {
+                        Text("🌿").font(.system(size: 36))
+                        Text("Keep a Memory")
+                            .font(.custom("Snell Roundhand", size: 34))
+                            .foregroundColor(Color(hex: "5c4a3a"))
+                        Text("Write something you'd like to remember")
+                            .font(.custom("Georgia", size: 14))
+                            .foregroundColor(Color(hex: "9a8a7a"))
+                            .multilineTextAlignment(.center)
+                    }
+
+                    if !uniqueNames.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("About who?")
+                                .font(.custom("Georgia", size: 13))
+                                .foregroundColor(Color(hex: "b0a090"))
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(uniqueNames, id: \.self) { name in
+                                        Button { selectedPersonName = name } label: {
+                                            Text(name)
+                                                .font(.custom("Georgia", size: 14))
+                                                .foregroundColor(selectedPersonName == name ? .white : Color(hex: "7ba7bc"))
+                                                .padding(.horizontal, 16).padding(.vertical, 8)
+                                                .background(
+                                                    Capsule().fill(selectedPersonName == name
+                                                        ? Color(hex: "7ba7bc")
+                                                        : Color(hex: "7ba7bc").opacity(0.12))
+                                                )
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 2)
+                            }
+                        }
+                    }
+
+                    // Optional photo
+                    Button { showPhotoPicker = true } label: {
+                        if let img = selectedImage {
+                            Image(uiImage: img)
+                                .resizable().scaledToFill()
+                                .frame(maxWidth: .infinity).frame(height: 140)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        } else {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(hex: "ede8e0"))
+                                .frame(maxWidth: .infinity).frame(height: 80)
+                                .overlay(
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "photo.badge.plus")
+                                            .foregroundColor(Color(hex: "b0a090"))
+                                        Text("Add a photo (optional)")
+                                            .font(.custom("Georgia", size: 14))
+                                            .foregroundColor(Color(hex: "b0a090"))
+                                    }
+                                )
+                        }
+                    }
+
+                    TextField("Write your memory here…", text: $text, axis: .vertical)
+                        .font(.custom("Georgia", size: 16))
+                        .foregroundColor(Color(hex: "333333"))
+                        .lineLimit(3...5).padding(16)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "ede8e0")))
+
+                    Button {
+                        var entry = MemoryBoardEntry()
+                        entry.text = text
+                        entry.personName = selectedPersonName
+                        entry.entryType = .photo
+                        entry.createdFrom = "quiz_wrong"
+                        if let img = selectedImage {
+                            entry.imageFilename = ImageFileStorage.save(img, compressionQuality: 0.5)
+                        }
+                        onSave(entry)
+                        dismiss()
+                    } label: {
+                        Text("Save to Memory Board")
+                            .font(.custom("Georgia", size: 16)).fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(canSave
+                                        ? LinearGradient(colors: [Color(hex: "7ba7bc"), Color(hex: "a8c5a0")], startPoint: .leading, endPoint: .trailing)
+                                        : LinearGradient(colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
+                            )
+                    }
+                    .disabled(!canSave)
+                }
+                .padding(.horizontal, 32)
+                .frame(maxWidth: 500)
+
+                Spacer()
+            }
+        }
+        .sheet(isPresented: $showPhotoPicker) { ImagePicker(image: $selectedImage) }
+    }
+}
+
+// MARK: - Voice Player View (reusable)
 struct VoicePlayerView: View {
     let voiceData: Data?
     @State private var player: AVAudioPlayer?
@@ -622,8 +598,7 @@ struct VoicePlayerView: View {
         else {
             guard let data = voiceData else { return }
             player = try? AVAudioPlayer(data: data)
-            player?.play()
-            isPlaying = true
+            player?.play(); isPlaying = true
         }
     }
 }

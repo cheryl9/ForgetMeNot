@@ -9,6 +9,8 @@ struct MyApp: App {
     @StateObject var memoryBoardStore = MemoryBoardStore()
     @StateObject var dropletStore = DropletStore()
     @StateObject private var shopStore = ShopStore()
+    @StateObject var memoryWalkStore = MemoryWalkStore()  
+    @StateObject private var musicPlayer = AmbientMusicPlayer()
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +22,8 @@ struct MyApp: App {
                 .environmentObject(memoryBoardStore)
                 .environmentObject(dropletStore)
                 .environmentObject(shopStore)
+                .environmentObject(memoryWalkStore)  
+                .environmentObject(musicPlayer)      
         }
     }
 }
