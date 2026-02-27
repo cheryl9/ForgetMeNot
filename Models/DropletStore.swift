@@ -17,6 +17,12 @@ class DropletStore: ObservableObject {
         UserDefaults.standard.set(totalDroplets, forKey: "droplets_\(userKey)")
     }
 
+    func spend(_ amount: Int) {
+        guard totalDroplets >= amount else { return }
+        totalDroplets -= amount
+        UserDefaults.standard.set(totalDroplets, forKey: "droplets_\(userKey)")
+    }
+
     func reset() {
         totalDroplets = 0
     }

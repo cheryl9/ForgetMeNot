@@ -166,11 +166,10 @@ struct WelcomeStepView: View {
                 Text("What is their name?")
                     .font(.custom("Georgia", size: 15))
                     .foregroundColor(Color(hex: "666666"))
-                    .padding(.horizontal, 4)
-                TextField("e.g. Grandma Rose", text: $patientName)
+                TextField("e.g. Lucy Tan", text: $patientName)
                     .font(.custom("Georgia", size: 17))
                     .foregroundColor(Color(hex: "333333"))
-                    .padding(16)
+                    .padding(20)
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.9)))
                     .focused($focused)
             }
@@ -214,7 +213,7 @@ struct PersonStepView: View {
                     Text("Person \(index + 1) of 2")
                         .font(.custom("Georgia", size: 13))
                         .foregroundColor(Color(hex: "aaaaaa"))
-                    Text("Tell us about them")
+                    Text("Add their favourite person")
                         .font(.custom("Snell Roundhand", size: 34))
                         .foregroundColor(Color(hex: "7ba7bc"))
                 }
@@ -248,10 +247,10 @@ struct PersonStepView: View {
                 }
 
                 VStack(spacing: 12) {
-                    OnboardingField(icon: "person.fill", placeholder: "Their name (required)", text: $person.name, color: Color(hex: "7ba7bc"))
-                    OnboardingField(icon: "heart.fill", placeholder: "Relationship, e.g. Daughter (required)", text: $person.relationship, color: Color(hex: "f07080"))
-                    OnboardingField(icon: "mappin.circle.fill", placeholder: "Where do they live? e.g. Queenstown", text: $person.location, color: Color(hex: "a8c5a0"))
-                    OnboardingField(icon: "star.fill", placeholder: "A fun fact, e.g. Loves gardening", text: $person.funFact, color: Color(hex: "f0a030"))
+                    OnboardingField(icon: "person.fill", placeholder: "Their name (required)", text: $person.name, color: Color(hex: "f0f0f0"))
+                    OnboardingField(icon: "heart.fill", placeholder: "Relationship, e.g. Daughter (required)", text: $person.relationship, color: Color(hex: "f0f0f0"))
+                    OnboardingField(icon: "mappin.circle.fill", placeholder: "Where do they live? e.g. Queenstown", text: $person.location, color: Color(hex: "f0f0f0"))
+                    OnboardingField(icon: "star.fill", placeholder: "A fun fact, e.g. Loves gardening", text: $person.funFact, color: Color(hex: "f0f0f0"))
                 }
 
                 OnboardingNextButton(
@@ -380,7 +379,6 @@ struct OnboardingDoneView: View {
 
     var body: some View {
         VStack(spacing: 28) {
-            Text("🌷").font(.system(size: 64))
             VStack(spacing: 10) {
                 Text("All set!")
                     .font(.custom("Snell Roundhand", size: 42))
@@ -390,7 +388,7 @@ struct OnboardingDoneView: View {
                     .foregroundColor(Color(hex: "888888"))
                     .multilineTextAlignment(.center)
             }
-            OnboardingNextButton(label: "Enter the Garden 🌸", enabled: true, action: onFinish)
+            OnboardingNextButton(label: "Enter the Garden", enabled: true, action: onFinish)
         }
         .padding(36)
         .frame(maxWidth: min(420, UIScreen.main.bounds.width - 40))

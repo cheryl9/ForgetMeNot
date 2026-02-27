@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "plant_forget_me_not.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

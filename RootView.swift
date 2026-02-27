@@ -6,6 +6,7 @@ struct RootView: View {
     @EnvironmentObject var dropletStore: DropletStore
     @EnvironmentObject var memoryBoardStore: MemoryBoardStore
     @EnvironmentObject var levelStore: LevelStore
+    @EnvironmentObject var shopStore: ShopStore
 
     var body: some View {
         Group {
@@ -27,6 +28,7 @@ struct RootView: View {
                 dropletStore.load(for: username)
                 memoryBoardStore.load(for: username)
                 levelStore.load(for: username)
+                shopStore.load(for: username)
             }
         }
     }

@@ -59,7 +59,6 @@ struct QuizView: View {
                     .frame(maxWidth: .infinity)
 
                 } else if let q = current {
-
                     if isLandscape {
                         HStack(alignment: .center, spacing: 0) {
                             VStack(spacing: 0) {
@@ -153,7 +152,6 @@ struct QuizView: View {
         }
     }
 
-    // FIX 4: backToGarden uses onExitToHome callback to go to actual HomeView
     func backToGarden() {
         if let onExitToHome = onExitToHome {
             onExitToHome()
@@ -170,7 +168,7 @@ struct QuizView: View {
                     .font(.system(size: 30))
                     .foregroundColor(Color(hex: "aaaaaa"))
             }
-            .frame(width: 44, height: 44) // FIX 3: explicit tap target
+            .frame(width: 44, height: 44)
 
             Spacer()
 
@@ -190,7 +188,6 @@ struct QuizView: View {
 
             Spacer()
 
-            // FIX 5: Water droplets display from dropletsEarned (added to store on quiz complete)
             HStack(spacing: 4) {
                 Text("💧")
                     .font(.system(size: 18))
@@ -204,9 +201,9 @@ struct QuizView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.15)))
-            .frame(minWidth: 64) // FIX 3: ensure droplet pill is visible
+            .frame(minWidth: 64)
         }
-        .frame(height: 50) // FIX 3: explicit height for top bar
+        .frame(height: 50)
     }
 
     // MARK: - Question Card
@@ -268,7 +265,6 @@ struct QuizView: View {
         }
     }
 
-    // MARK: - Logic
     func answerState(for choice: String, correct: String) -> AnswerButton.AnswerState {
         guard let selected = selectedAnswer else { return .idle }
         if choice == correct { return .correct }
@@ -306,7 +302,6 @@ struct QuizView: View {
             }
         } else {
             levelStore.completeLevel(level)
-            // FIX 5: Persist droplets to DropletStore when quiz ends
             dropletStore.add(dropletsEarned)
             withAnimation { quizComplete = true }
         }
@@ -325,105 +320,120 @@ struct MemoryPromptView: View {
     @State private var selectedPersonName = ""
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                Image("garden_background")
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
-                Color.white.opacity(0.5).ignoresSafeArea()
+        ZStack {
+            // Solid background — no more bleed-through
+            Color(hex: "f7f3ee").ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    HStack {
-                        Spacer()
-                        Button("Skip") { dismiss() }
-                            .font(.custom("Georgia", size: 15))
-                            .foregroundColor(Color(hex: "aaaaaa"))
+            // Subtle garden texture on top
+            Image("garden_background")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+                .opacity(0.08)
+
+            VStack(spacing: 0) {
+                // Top bar
+                HStack {
+                    Spacer()
+                    Button("Skip") { dismiss() }
+                        .font(.custom("Georgia", size: 15))
+                        .foregroundColor(Color(hex: "aaaaaa"))
+                        .padding(.horizontal, 24)
+                        .padding(.top, 20)
+                }
+
+                Spacer()
+
+                // Main content — vertically centered
+                VStack(spacing: 22) {
+
+                    // Title
+                    VStack(spacing: 6) {
+                        Text("Keep a Memory")
+                            .font(.custom("Snell Roundhand", size: 34))
+                            .foregroundColor(Color(hex: "5c4a3a"))
+                        Text("Write something you'd like to remember")
+                            .font(.custom("Georgia", size: 14))
+                            .foregroundColor(Color(hex: "9a8a7a"))
+                            .multilineTextAlignment(.center)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, geo.safeAreaInsets.top + 16)
 
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            VStack(spacing: 8) {
-                                Text("💭").font(.system(size: 44))
-                                Text("Keep a Memory")
-                                    .font(.custom("Snell Roundhand", size: 30))
-                                    .foregroundColor(Color(hex: "7ba7bc"))
-                                Text("Write something you'd like to remember")
-                                    .font(.custom("Georgia", size: 14))
-                                    .foregroundColor(Color(hex: "888888"))
-                                    .multilineTextAlignment(.center)
-                            }
-
-                            if !questions.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("About who?")
-                                        .font(.custom("Georgia", size: 13))
-                                        .foregroundColor(Color(hex: "aaaaaa"))
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 10) {
-                                            ForEach(Array(Set(questions.map { $0.person.name })), id: \.self) { name in
-                                                Button(action: { selectedPersonName = name }) {
-                                                    Text(name)
-                                                        .font(.custom("Georgia", size: 14))
-                                                        .foregroundColor(selectedPersonName == name ? .white : Color(hex: "7ba7bc"))
-                                                        .padding(.horizontal, 14)
-                                                        .padding(.vertical, 8)
-                                                        .background(
-                                                            Capsule().fill(selectedPersonName == name
-                                                                ? Color(hex: "7ba7bc")
-                                                                : Color(hex: "7ba7bc").opacity(0.1))
-                                                        )
-                                                }
-                                            }
-                                        }
+                    // Person pills
+                    if !questions.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("About who?")
+                                .font(.custom("Georgia", size: 13))
+                                .foregroundColor(Color(hex: "b0a090"))
+                            HStack(spacing: 10) {
+                                ForEach(Array(Set(questions.map { $0.person.name })), id: \.self) { name in
+                                    Button(action: { selectedPersonName = name }) {
+                                        Text(name)
+                                            .font(.custom("Georgia", size: 14))
+                                            .foregroundColor(selectedPersonName == name ? .white : Color(hex: "7ba7bc"))
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(
+                                                Capsule().fill(selectedPersonName == name
+                                                    ? Color(hex: "7ba7bc")
+                                                    : Color(hex: "7ba7bc").opacity(0.12))
+                                            )
                                     }
                                 }
                             }
+                        }
+                    }
 
-                            Button { showPhotoPicker = true } label: {
-                                if let img = selectedImage {
-                                    Image(uiImage: img)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(height: 140)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                } else {
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(Color.white.opacity(0.6))
-                                        .frame(height: 90)
-                                        .overlay(
-                                            HStack(spacing: 8) {
-                                                Image(systemName: "photo.badge.plus")
-                                                    .foregroundColor(Color(hex: "aaaaaa"))
-                                                Text("Add a photo (optional)")
-                                                    .font(.custom("Georgia", size: 14))
-                                                    .foregroundColor(Color(hex: "aaaaaa"))
-                                            }
-                                        )
-                                }
-                            }
+                    // Photo picker
+                    Button { showPhotoPicker = true } label: {
+                        if let img = selectedImage {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 140)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 3)
+                        } else {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(hex: "ede8e0"))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 80)
+                                .overlay(
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "photo.badge.plus")
+                                            .foregroundColor(Color(hex: "b0a090"))
+                                        Text("Add a photo (optional)")
+                                            .font(.custom("Georgia", size: 14))
+                                            .foregroundColor(Color(hex: "b0a090"))
+                                    }
+                                )
+                        }
+                    }
 
-                            TextField("Write your memory here...", text: $text, axis: .vertical)
-                                .font(.custom("Georgia", size: 16))
-                                .foregroundColor(Color(hex: "333333"))
-                                .lineLimit(3...6)
-                                .padding(16)
-                                .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.8)))
+                    // Text field
+                    TextField("Write your memory here...", text: $text, axis: .vertical)
+                        .font(.custom("Georgia", size: 16))
+                        .foregroundColor(Color(hex: "333333"))
+                        .lineLimit(3...5)
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color(hex: "ede8e0"))
+                        )
 
-                            Button("Save to Memory Board") {
-                                var entry = MemoryBoardEntry()
-                                entry.text = text
-                                entry.personName = selectedPersonName
-                                // Save selected image to file, store filename in entry
-                                if let img = selectedImage {
-                                    entry.imageFilename = ImageFileStorage.save(img, compressionQuality: 0.5)
-                                }
-                                entry.createdFrom = "quiz_wrong"
-                                onSave(entry)
-                                dismiss()
-                            }
+                    // Save button
+                    Button {
+                        var entry = MemoryBoardEntry()
+                        entry.text = text
+                        entry.personName = selectedPersonName
+                        if let img = selectedImage {
+                            entry.imageFilename = ImageFileStorage.save(img, compressionQuality: 0.5)
+                        }
+                        entry.createdFrom = "quiz_wrong"
+                        onSave(entry)
+                        dismiss()
+                    } label: {
+                        Text("Save to Memory Board")
                             .font(.custom("Georgia", size: 16))
                             .fontWeight(.semibold)
                             .foregroundColor(.white)
@@ -431,24 +441,21 @@ struct MemoryPromptView: View {
                             .padding(.vertical, 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(LinearGradient(
-                                        colors: [Color(hex: "7ba7bc"), Color(hex: "a8c5a0")],
-                                        startPoint: .leading, endPoint: .trailing
-                                    ))
+                                    .fill(
+                                        text.isEmpty
+                                        ? LinearGradient(colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing)
+                                        : LinearGradient(colors: [Color(hex: "7ba7bc"), Color(hex: "a8c5a0")], startPoint: .leading, endPoint: .trailing)
+                                    )
                             )
-                            .disabled(text.isEmpty)
-                            .opacity(text.isEmpty ? 0.5 : 1)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 20)
-                        .padding(.bottom, geo.safeAreaInsets.bottom + 20)
                     }
+                    .disabled(text.isEmpty)
                 }
-                .frame(maxWidth: min(geo.size.width, 560))
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 32)
+                .frame(maxWidth: 500)
+
+                Spacer()
             }
         }
-        .ignoresSafeArea()
         .sheet(isPresented: $showPhotoPicker) {
             ImagePicker(image: $selectedImage)
         }
@@ -483,10 +490,10 @@ struct AnswerButton: View {
                 .fontWeight(.semibold)
                 .foregroundColor(textColor)
                 .multilineTextAlignment(.center)
-                .padding(.vertical, 16) // FIX 3: increased padding
+                .padding(.vertical, 16)
                 .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 60) // FIX 3: enforce minimum height
+                .frame(minHeight: 60)
                 .background(
                     Capsule()
                         .fill(bgColor)
@@ -509,13 +516,6 @@ struct QuizCompleteView: View {
 
     var isPerfect: Bool { score == total }
 
-    var emoji: String {
-        let r = Double(score) / Double(total)
-        if r == 1.0 { return "🌸" }
-        if r >= 0.75 { return "🌿" }
-        if r >= 0.5 { return "🌱" }
-        return "💧"
-    }
     var message: String {
         let r = Double(score) / Double(total)
         if r == 1.0 { return "Perfect! All memories recalled!" }
@@ -526,7 +526,6 @@ struct QuizCompleteView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text(emoji).font(.system(size: 72))
             Text("Level Complete!")
                 .font(.custom("Snell Roundhand", size: 32))
                 .foregroundColor(Color(hex: "7ba7bc"))
@@ -552,7 +551,6 @@ struct QuizCompleteView: View {
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 10) {
-                // FIX 4: onDone triggers backToGarden() which calls onExitToHome
                 Button(action: onDone) {
                     Text("Back to Garden")
                         .font(.custom("Snell Roundhand", size: 20))
@@ -572,19 +570,16 @@ struct QuizCompleteView: View {
 
                 if !isPerfect {
                     Button(action: onMemoryBoard) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "book.fill")
-                            Text("Write a Memory")
-                        }
-                        .font(.custom("Georgia", size: 15))
-                        .foregroundColor(Color(hex: "7ba7bc"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "7ba7bc").opacity(0.1))
-                                .overlay(Capsule().stroke(Color(hex: "7ba7bc").opacity(0.3), lineWidth: 1))
-                        )
+                        Text("Write a Memory")
+                            .font(.custom("Georgia", size: 15))
+                            .foregroundColor(Color(hex: "5c4a3a"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                Capsule()
+                                    .fill(Color(hex: "7ba7bc").opacity(0.1))
+                                    .overlay(Capsule().stroke(Color(hex: "7ba7bc").opacity(0.3), lineWidth: 1))
+                            )
                     }
                 }
             }
@@ -597,6 +592,7 @@ struct QuizCompleteView: View {
                 .shadow(color: .black.opacity(0.1), radius: 24, x: 0, y: 10)
         )
         .padding(.horizontal, 24)
+        .padding(.vertical, 50)
     }
 }
 

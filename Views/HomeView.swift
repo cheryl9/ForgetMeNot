@@ -1,12 +1,13 @@
 import SwiftUI
 
 enum HomeSheet: Identifiable {
-    case level(Int), setup, memoryBoard
+    case level(Int), setup, memoryBoard, shop
     var id: String {
         switch self {
         case .level(let l): return "level_\(l)"
         case .setup: return "setup"
         case .memoryBoard: return "memoryBoard"
+        case .shop: return "shop" 
         }
     }
 }
@@ -18,6 +19,7 @@ struct HomeView: View {
     @EnvironmentObject var memoryBoardStore: MemoryBoardStore
     @EnvironmentObject var dropletStore: DropletStore
     @EnvironmentObject var onboardingStore: OnboardingStore
+    @EnvironmentObject var shopStore: ShopStore
     @State private var activeSheet: HomeSheet? = nil
     @State private var appeared = false
 
@@ -66,7 +68,9 @@ struct HomeView: View {
 
                 // Left side buttons
                 VStack(alignment: .leading, spacing: geo.size.height < 500 ? 8 : 12) {
-                    SideCircleButton(icon: "basket.fill", color: Color(hex: "9BD7D1")) { }
+                    SideCircleButton(icon: "basket.fill", color: Color(hex: "9BD7D1")) {
+                        activeSheet = .shop   
+                    }
                     SideCircleButton(icon: "gearshape.fill", color: Color(hex: "B4C5FD")) {
                         activeSheet = .setup
                     }
@@ -105,23 +109,28 @@ struct HomeView: View {
         }
         .ignoresSafeArea()
         .onAppear { withAnimation { appeared = true } }
-        // FIX 4: fullScreenCover passes onExitToHome so quiz can dismiss back to HomeView
+        
         .fullScreenCover(item: $activeSheet) { sheet in
             switch sheet {
             case .level(let level):
                 LevelEntryView(
                     level: level,
-                    onExitToHome: { activeSheet = nil }  // FIX 4: passed through LevelEntryView → QuizView
+                    onExitToHome: { activeSheet = nil }  
                 )
                 .environmentObject(memoryStore)
                 .environmentObject(onboardingStore)
                 .environmentObject(levelStore)
                 .environmentObject(memoryBoardStore)
                 .environmentObject(dropletStore)
+            case .shop:
+                ShopView()
+                    .environmentObject(shopStore)
+                    .environmentObject(dropletStore)
             case .setup:
-                SettingsView()
-                    .environmentObject(authManager)
-                    .environmentObject(memoryStore)
+            SettingsView()
+                .environmentObject(authManager)
+                .environmentObject(memoryBoardStore)  
+                .environmentObject(shopStore)         
             case .memoryBoard:
                 MemoryBoardView()
                     .environmentObject(memoryBoardStore)

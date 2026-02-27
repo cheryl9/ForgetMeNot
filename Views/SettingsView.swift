@@ -2,9 +2,12 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
-    @EnvironmentObject var memoryStore: MemoryStore
+    @EnvironmentObject var memoryBoardStore: MemoryBoardStore
+    @EnvironmentObject var shopStore: ShopStore
     @Environment(\.dismiss) var dismiss
-    @State private var showCaregiverSetup = false
+
+    @State private var showMemoryBoard = false
+    @State private var showGarden = false
     @State private var showLogoutConfirm = false
 
     var body: some View {
@@ -29,18 +32,17 @@ struct SettingsView: View {
                         }
                         Spacer()
                         Text("Settings")
-                            .font(.custom("Snell Roundhand", size: 28))
-                            .foregroundColor(Color(hex: "7ba7bc"))
+                            .font(.custom("Snell Roundhand", size: 40))
+                            .foregroundColor(Color(hex: "5c4a3a"))
                         Spacer()
-                        // Balance
                         Color.clear.frame(width: 40, height: 40)
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, geo.safeAreaInsets.top + 16)
+                    .padding(.top, geo.safeAreaInsets.top + 32)
                     .padding(.bottom, 24)
 
                     VStack(spacing: 16) {
-                        // Logged in as
+                        // Logged in as card
                         HStack(spacing: 14) {
                             Circle()
                                 .fill(Color(hex: "7ba7bc").opacity(0.2))
@@ -64,12 +66,17 @@ struct SettingsView: View {
                         .padding(16)
                         .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.8)))
 
-                        // Add Memory button → goes to CaregiverSetupView
-                        SettingsRow(icon: "photo.on.rectangle.angled", label: "Manage Memories", color: Color(hex: "a8c5a0")) {
-                            showCaregiverSetup = true
+                        // Memory Board
+                        SettingsRow(icon: "doc.plaintext.fill", label: "Memory Board", color: Color(hex: "f0c080")) {
+                            showMemoryBoard = true
                         }
 
-                        // Logout
+                        // My Garden
+                        SettingsRow(icon: "leaf.fill", label: "My Garden", color: Color(hex: "7eb8a4")) {
+                            showGarden = true
+                        }
+
+                        // Log Out
                         SettingsRow(icon: "rectangle.portrait.and.arrow.right", label: "Log Out", color: Color(hex: "f07080")) {
                             showLogoutConfirm = true
                         }
@@ -82,9 +89,13 @@ struct SettingsView: View {
             }
         }
         .ignoresSafeArea()
-        .fullScreenCover(isPresented: $showCaregiverSetup) {
-            CaregiverSetupView()
-                .environmentObject(memoryStore)
+        .fullScreenCover(isPresented: $showMemoryBoard) {
+            MemoryBoardView()
+                .environmentObject(memoryBoardStore)
+        }
+        .fullScreenCover(isPresented: $showGarden) {
+            MyGardenView()
+                .environmentObject(shopStore)
         }
         .alert("Log Out", isPresented: $showLogoutConfirm) {
             Button("Log Out", role: .destructive) {

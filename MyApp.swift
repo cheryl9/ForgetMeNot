@@ -8,6 +8,7 @@ struct MyApp: App {
     @StateObject var levelStore = LevelStore()
     @StateObject var memoryBoardStore = MemoryBoardStore()
     @StateObject var dropletStore = DropletStore()
+    @StateObject private var shopStore = ShopStore()
 
     var body: some Scene {
         WindowGroup {
@@ -18,6 +19,7 @@ struct MyApp: App {
                 .environmentObject(levelStore)
                 .environmentObject(memoryBoardStore)
                 .environmentObject(dropletStore)
+                .environmentObject(shopStore)
         }
     }
 }
