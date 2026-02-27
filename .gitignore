@@ -1,0 +1,31 @@
+# Build artifacts
+.build/
+DerivedData/
+*.o
+*.d
+
+# Xcode user state
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# Swift Package Manager
+.swiftpm/xcode/
+.swiftpm/configuration/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Large media files you don't want in git
+# Uncomment if you have local test videos/audio
+# *.mp4
+# *.mov
+# *.m4a
+
+# CocoaPods (if ever used)
+Pods/
+Podfile.lock
