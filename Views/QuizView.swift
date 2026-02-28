@@ -154,6 +154,25 @@ struct QuizView: View {
     func backToGarden() {
         if let cb = onExitToHome { cb() } else { dismiss() }
     }
+
+    func progressDotColor(at index: Int) -> Color {
+        if index < currentIndex { return Color(hex: "a8c5a0") }
+        if index == currentIndex { return Color(hex: "7ba7bc") }
+        return Color(hex: "dddddd")
+    }
+
+    func isMemoryBoardQuestion(_ type: QuizQuestionType) -> Bool {
+        switch type {
+        case .memoryWho, .memoryRecall, .voiceWho, .voiceWhen, .voicePeople:
+            return true
+        default:
+            return false
+        }
+    }
+
+    func memorySourceLabel(for question: QuizQuestion) -> String {
+        question.memoryVoiceFilename != nil ? "From Voice Memory" : "From Memory Board"
+    }
     
     // MARK: - Top Bar
     var topBar: some View {
@@ -170,11 +189,7 @@ struct QuizView: View {
             HStack(spacing: 6) {
                 ForEach(0..<questions.count, id: \.self) { i in
                     Circle()
-                        .fill(
-                            i < currentIndex  ? Color(hex: "a8c5a0") :
-                                i == currentIndex ? Color(hex: "7ba7bc") :
-                                Color(hex: "dddddd")
-                        )
+                        .fill(progressDotColor(at: i))
                         .frame(width: 8, height: 8)
                 }
             }
@@ -211,42 +226,9 @@ struct QuizView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 8)
-            
-            if let memImg = q.memoryImage {
-                Image(uiImage: memImg)
-                    .resizable().scaledToFill()
-                    .frame(width: imgSize * 1.6, height: imgSize)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white, lineWidth: 3))
-                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-            } else if let img = q.person.image {
-                Image(uiImage: img)
-                    .resizable().scaledToFill()
-                    .frame(width: imgSize, height: imgSize)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-            } else {
-                Circle()
-                    .fill(Color(hex: "7ba7bc").opacity(0.2))
-                    .frame(width: imgSize, height: imgSize)
-                    .overlay(
-                        Text(q.person.name.prefix(1).uppercased())
-                            .font(.system(size: imgSize * 0.4, weight: .semibold))
-                            .foregroundColor(Color(hex: "7ba7bc"))
-                    )
-                    .overlay(Circle().stroke(Color.white, lineWidth: 3))
-            }
-            
-            if q.type == .memoryWho || q.type == .memoryRecall {
-                HStack(spacing: 4) {
-                    Image(systemName: "pin.fill").font(.system(size: 10))
-                    Text("From Memory Board").font(.custom("Georgia", size: 11))
-                }
-                .foregroundColor(Color(hex: "7ba7bc"))
-                .padding(.horizontal, 10).padding(.vertical, 4)
-                .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.1)))
-            }
+
+            questionMedia(q: q, imgSize: imgSize)
+            memoryBadge(for: q)
         }
         .padding(.horizontal, 24).padding(.vertical, 20)
         .frame(maxWidth: .infinity)
@@ -257,6 +239,59 @@ struct QuizView: View {
                 .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color.white.opacity(0.7), lineWidth: 1.5))
                 .shadow(color: .black.opacity(0.08), radius: 20, x: 0, y: 8)
         )
+    }
+
+    @ViewBuilder
+    func questionMedia(q: QuizQuestion, imgSize: CGFloat) -> some View {
+        if let memImg = q.memoryImage {
+            Image(uiImage: memImg)
+                .resizable().scaledToFill()
+                .frame(width: imgSize * 1.6, height: imgSize)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white, lineWidth: 3))
+                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+        } else if q.memoryVoiceFilename != nil {
+            VoicePlayerView(voiceURL: VoiceFileStorage.url(for: q.memoryVoiceFilename))
+                .frame(maxWidth: min(380, imgSize * 2.3))
+
+            if let dateText = q.memoryDateText, q.type == .voiceWhen {
+                Text("Recorded: \(dateText)")
+                    .font(.custom("Georgia", size: 12))
+                    .foregroundColor(Color(hex: "7ba7bc"))
+            }
+        } else if let img = q.person.image {
+            Image(uiImage: img)
+                .resizable().scaledToFill()
+                .frame(width: imgSize, height: imgSize)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+        } else {
+            Circle()
+                .fill(Color(hex: "7ba7bc").opacity(0.2))
+                .frame(width: imgSize, height: imgSize)
+                .overlay(
+                    Text(q.person.name.prefix(1).uppercased())
+                        .font(.system(size: imgSize * 0.4, weight: .semibold))
+                        .foregroundColor(Color(hex: "7ba7bc"))
+                )
+                .overlay(Circle().stroke(Color.white, lineWidth: 3))
+        }
+    }
+
+    @ViewBuilder
+    func memoryBadge(for q: QuizQuestion) -> some View {
+        if isMemoryBoardQuestion(q.type) {
+            HStack(spacing: 4) {
+                Image(systemName: q.memoryVoiceFilename != nil ? "waveform" : "pin.fill")
+                    .font(.system(size: 10))
+                Text(memorySourceLabel(for: q))
+                    .font(.custom("Georgia", size: 11))
+            }
+            .foregroundColor(Color(hex: "7ba7bc"))
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.1)))
+        }
     }
     
     // MARK: - Answer Grid
@@ -565,7 +600,7 @@ struct MemoryPromptView: View {
             }
         }
         .fullScreenCover(isPresented: $showPhotoPicker) {
-            ImagePicker(image: $selectedImage)
+            CameraPicker(image: $selectedImage)
                 .ignoresSafeArea()
         }
     }
@@ -573,7 +608,7 @@ struct MemoryPromptView: View {
 
 // MARK: - Voice Player View
 struct VoicePlayerView: View {
-    let voiceData: Data?
+    let voiceURL: URL?
     @State private var player: AVAudioPlayer?
     @State private var isPlaying = false
     
@@ -597,11 +632,11 @@ struct VoicePlayerView: View {
             player?.stop()
             isPlaying = false
         } else {
-            guard let data = voiceData else { return }
+            guard let voiceURL else { return }
             do {
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
                 try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-                player = try AVAudioPlayer(data: data)
+                player = try AVAudioPlayer(contentsOf: voiceURL)
                 player?.prepareToPlay()
                 player?.play()
                 isPlaying = true

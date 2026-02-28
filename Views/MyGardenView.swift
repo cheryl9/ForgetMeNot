@@ -4,18 +4,18 @@ struct MyGardenView: View {
     @EnvironmentObject var shopStore: ShopStore
     @EnvironmentObject var musicPlayer: AmbientMusicPlayer
     @Environment(\.dismiss) var dismiss
-
+    
     var purchasedItems: [ShopItem] {
         ShopItem.catalog.filter { shopStore.hasPurchased($0) }
     }
-
+    
     var body: some View {
         GeometryReader { geo in
             let horizontalPadding: CGFloat = 24
             let availableWidth = max(240, geo.size.width - (horizontalPadding * 2))
             let columnCount = min(5, max(2, Int(availableWidth / 135)))
             let columns = Array(repeating: GridItem(.flexible(), spacing: 20), count: columnCount)
-
+            
             ZStack {
                 // Background
                 Image("garden_background")
@@ -24,10 +24,10 @@ struct MyGardenView: View {
                     .frame(width: geo.size.width, height: geo.size.height)
                     .clipped()
                     .ignoresSafeArea()
-
+                
                 Color.white.opacity(0.35)
                     .ignoresSafeArea()
-
+                
                 VStack(spacing: 0) {
                     // Top bar
                     HStack {
@@ -48,16 +48,15 @@ struct MyGardenView: View {
                         MusicToggleButton(musicPlayer: musicPlayer)
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, geo.safeAreaInsets.top + 32)
-
+                    .padding(.top, max(geo.safeAreaInsets.top, 50) + 32)
+                    
                     Text("\(purchasedItems.count) of \(ShopItem.catalog.count) plants collected")
                         .font(.system(size: 13, design: .rounded))
                         .foregroundColor(Color(hex: "9a8a7a"))
                         .padding(.top, 6)
-                    .padding(.bottom, 20)
-
+                        .padding(.bottom, 20)
+                    
                     if purchasedItems.isEmpty {
-                        // Empty state
                         Spacer()
                         VStack(spacing: 16) {
                             Text("🪴")
@@ -78,13 +77,11 @@ struct MyGardenView: View {
                         .padding(.horizontal, 40)
                         Spacer()
                     } else {
-                        // Garden grid
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: 20) {
                                 ForEach(purchasedItems) { item in
                                     GardenPlantCard(item: item)
                                 }
-                                // Locked slots for unpurchased plants
                                 ForEach(ShopItem.catalog.filter { !shopStore.hasPurchased($0) }) { item in
                                     LockedPlantSlot()
                                 }
@@ -104,7 +101,7 @@ struct MyGardenView: View {
 struct GardenPlantCard: View {
     let item: ShopItem
     @State private var wiggle = false
-
+    
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
@@ -118,7 +115,7 @@ struct GardenPlantCard: View {
                     )
                     .frame(width: 90, height: 90)
                     .shadow(color: Color(hex: "a8c5a0").opacity(0.4), radius: 8, x: 0, y: 3)
-
+                
                 Image(item.imageName)
                     .resizable()
                     .scaledToFit()
@@ -129,7 +126,7 @@ struct GardenPlantCard: View {
                         value: wiggle
                     )
             }
-
+            
             Text(item.name)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundColor(Color(hex: "5c4a3a"))
@@ -158,12 +155,12 @@ struct LockedPlantSlot: View {
                 Circle()
                     .fill(Color(hex: "eeeeee").opacity(0.6))
                     .frame(width: 90, height: 90)
-
+                
                 Image(systemName: "lock.fill")
                     .font(.system(size: 24))
                     .foregroundColor(Color(hex: "cccccc"))
             }
-
+            
             Text("???")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundColor(Color(hex: "cccccc"))

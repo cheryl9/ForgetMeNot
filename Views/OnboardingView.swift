@@ -277,7 +277,7 @@ struct PersonStepView: View {
                 .shadow(color: .black.opacity(0.10), radius: 30, x: 0, y: 10)
         )
         .fullScreenCover(isPresented: $showPhotoPicker) {
-            ImagePicker(image: $selectedImage)
+            CameraPicker(image: $selectedImage)
                 .ignoresSafeArea()
         }
         .onChange(of: selectedImage) {
@@ -370,7 +370,7 @@ struct MemoryStepView: View {
                 .shadow(color: .black.opacity(0.10), radius: 30, x: 0, y: 10)
         )
         .fullScreenCover(isPresented: $showPhotoPicker) {
-            ImagePicker(image: $selectedImage)
+            CameraPicker(image: $selectedImage)
                 .ignoresSafeArea()
         }
         .onChange(of: selectedImage) {

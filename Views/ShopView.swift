@@ -5,16 +5,16 @@ struct ShopView: View {
     @EnvironmentObject var dropletStore: DropletStore
     @EnvironmentObject var musicPlayer: AmbientMusicPlayer
     @Environment(\.dismiss) var dismiss
-
+    
     @State private var selectedItem: ShopItem? = nil
     @State private var showInsufficientFunds = false
-
+    
     var body: some View {
         GeometryReader { geo in
             let availableWidth = max(240, geo.size.width - 30)
             let columnCount = min(6, max(2, Int(availableWidth / 150)))
             let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: columnCount)
-
+            
             ZStack {
                 // Background
                 Image("shop_background")
@@ -23,10 +23,10 @@ struct ShopView: View {
                     .frame(width: geo.size.width, height: geo.size.height)
                     .clipped()
                     .ignoresSafeArea()
-
+                
                 Color(hex: "f5f0e8").opacity(0.3)
                     .ignoresSafeArea()
-
+                
                 VStack(spacing: 0) {
                     // Top bar
                     ZStack {
@@ -57,22 +57,22 @@ struct ShopView: View {
                             Spacer()
                             MusicToggleButton(musicPlayer: musicPlayer)
                         }
-
+                        
                         Text("My Garden")
                             .font(.custom("Snell Roundhand", size: 40))
                             .fontWeight(.semibold)
                             .foregroundColor(Color(hex: "5c4a3a"))
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geo.safeAreaInsets.top + 32)
+                    .padding(.top, max(geo.safeAreaInsets.top, 50) + 32)
                     .padding(.bottom, 20)
-
+                    
                     // Grid
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(ShopItem.catalog) { item in
                                 ShopItemCard(item: item, isPurchased: shopStore.hasPurchased(item)) {
-                                    selectedItem = item   // sheet(item:) handles the rest
+                                    selectedItem = item
                                 }
                             }
                         }
@@ -83,7 +83,6 @@ struct ShopView: View {
             }
         }
         .ignoresSafeArea()
-        // ✅ Fixed: sheet(item:) guarantees item is never nil when sheet opens
         .sheet(item: $selectedItem) { item in
             PurchaseConfirmSheet(
                 item: item,
@@ -112,7 +111,7 @@ struct ShopItemCard: View {
     let item: ShopItem
     let isPurchased: Bool
     let onTap: () -> Void
-
+    
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 10) {
@@ -120,17 +119,17 @@ struct ShopItemCard: View {
                     Circle()
                         .fill(Color.white.opacity(0.6))
                         .frame(width: 110, height: 110)
-
+                    
                     Image(item.imageName)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 85, height: 85)
                 }
-
+                
                 Text(item.name)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundColor(Color(hex: "5c4a3a"))
-
+                
                 if isPurchased {
                     Label("Owned", systemImage: "checkmark.circle.fill")
                         .font(.system(size: 13, weight: .medium))
@@ -173,31 +172,31 @@ struct PurchaseConfirmSheet: View {
     let canAfford: Bool
     let onBuy: () -> Void
     let onBack: () -> Void
-
+    
     var body: some View {
         VStack(spacing: 20) {
             ZStack {
                 Image(systemName: "circle.dotted")
                     .font(.system(size: 120))
                     .foregroundColor(Color(hex: "c8dfc8").opacity(0.6))
-
+                
                 Image(item.imageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 90, height: 90)
             }
             .padding(.top, 18)
-
+            
             Text(item.name)
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundColor(Color(hex: "5c4a3a"))
-
+            
             if isPurchased {
                 Label("Already owned!", systemImage: "checkmark.circle.fill")
                     .foregroundColor(Color(hex: "7bc67a"))
                     .font(.system(size: 16, weight: .semibold))
             }
-
+            
             HStack(spacing: 16) {
                 Button(action: onBack) {
                     Text("< Back")
@@ -207,7 +206,7 @@ struct PurchaseConfirmSheet: View {
                         .padding(.vertical, 12)
                         .background(Capsule().fill(Color(hex: "e8ddd0")))
                 }
-
+                
                 if !isPurchased {
                     Button(action: onBuy) {
                         HStack(spacing: 6) {

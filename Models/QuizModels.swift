@@ -9,6 +9,9 @@ enum QuizQuestionType {
     case funFact
     case memoryWho
     case memoryRecall
+    case voiceWho
+    case voiceWhen
+    case voicePeople
 }
 
 // MARK: - Quiz Question
@@ -21,6 +24,9 @@ struct QuizQuestion: Identifiable {
     let wrongAnswers: [String]
     let promptText: String
     let memoryImage: UIImage?
+    let memoryVoiceFilename: String?
+    let memoryDateText: String?
+    let allAnswers: [String]
 
     init(
         type: QuizQuestionType,
@@ -28,7 +34,9 @@ struct QuizQuestion: Identifiable {
         correctAnswer: String,
         wrongAnswers: [String],
         promptText: String,
-        memoryImage: UIImage? = nil
+        memoryImage: UIImage? = nil,
+        memoryVoiceFilename: String? = nil,
+        memoryDateText: String? = nil
     ) {
         self.type = type
         self.person = person
@@ -36,10 +44,9 @@ struct QuizQuestion: Identifiable {
         self.wrongAnswers = wrongAnswers
         self.promptText = promptText
         self.memoryImage = memoryImage
-    }
-
-    var allAnswers: [String] {
-        Array((wrongAnswers.prefix(3) + [correctAnswer]).shuffled())
+        self.memoryVoiceFilename = memoryVoiceFilename
+        self.memoryDateText = memoryDateText
+        self.allAnswers = Array((wrongAnswers.prefix(3) + [correctAnswer]).shuffled())
     }
 }
 
@@ -50,6 +57,7 @@ struct QuizGenerator {
     private static let fallbackRelationships = ["Friend", "Neighbour", "Colleague", "Cousin", "Uncle", "Aunt", "Doctor", "Nurse"]
     private static let fallbackLocations     = ["Auckland", "Wellington", "Christchurch", "Hamilton", "Tauranga", "Dunedin", "Napier", "Palmerston North"]
     private static let fallbackFacts         = ["Loves cooking", "Enjoys gardening", "Plays chess", "Likes hiking", "Reads a lot", "Enjoys painting", "Loves music", "Great at crosswords"]
+    private static let fallbackDates         = ["January 2024", "March 2024", "June 2024", "September 2024", "December 2024", "January 2025", "March 2025", "June 2025"]
 
     static func generateQuestions(
         from people: [PersonProfile],
@@ -96,11 +104,11 @@ struct QuizGenerator {
         }
 
         // ── Memory Board questions ──
-        let quizzableMemories = memoryEntries.filter {
-            !$0.personName.isEmpty && !$0.text.isEmpty
-        }
+        let namedMemories = memoryEntries.filter { !$0.personName.isEmpty }
+        let textMemories = namedMemories.filter { !$0.text.isEmpty }
+        let voiceMemories = namedMemories.filter { $0.entryType == MemoryBoardEntry.EntryType.voice && $0.voiceFilename != nil }
 
-        for memory in quizzableMemories {
+        for memory in namedMemories {
             let allNames = Array(Set(validPeople.map(\.name) + memoryEntries.map(\.personName)))
                 .filter { !$0.isEmpty }
 
@@ -119,28 +127,73 @@ struct QuizGenerator {
                 memoryImage: memImg
             ))
 
+            // Voice memory variants
+            if memory.entryType == MemoryBoardEntry.EntryType.voice, let voiceFilename = memory.voiceFilename {
+                questions.append(QuizQuestion(
+                    type: .voiceWho,
+                    person: placeholder,
+                    correctAnswer: memory.personName,
+                    wrongAnswers: nameWrongs,
+                    promptText: "Whose voice is this?",
+                    memoryVoiceFilename: voiceFilename
+                ))
+
+                let dateAnswer = displayMonthYear(memory.dateCreated)
+                let otherDates = voiceMemories
+                    .filter { $0.id != memory.id }
+                    .map { displayMonthYear($0.dateCreated) }
+                let dateWrongs = pickWrong(from: otherDates, fallback: fallbackDates, excluding: dateAnswer, count: 3)
+                questions.append(QuizQuestion(
+                    type: .voiceWhen,
+                    person: placeholder,
+                    correctAnswer: dateAnswer,
+                    wrongAnswers: dateWrongs,
+                    promptText: "When was this memory from?",
+                    memoryVoiceFilename: voiceFilename,
+                    memoryDateText: dateAnswer
+                ))
+
+                questions.append(QuizQuestion(
+                    type: .voicePeople,
+                    person: placeholder,
+                    correctAnswer: memory.personName,
+                    wrongAnswers: nameWrongs,
+                    promptText: "Who is in this memory?",
+                    memoryVoiceFilename: voiceFilename
+                ))
+            }
+
             // Q: What do you remember about [person]?
-            let shortText = String(memory.text.prefix(60))
-            let otherTexts = quizzableMemories
-                .filter { $0.id != memory.id }
-                .map { String($0.text.prefix(60)) }
-            let textWrongs = pickWrong(from: otherTexts, fallback: fallbackFacts, excluding: shortText, count: 3)
-            questions.append(QuizQuestion(
-                type: .memoryRecall,
-                person: placeholder,
-                correctAnswer: shortText,
-                wrongAnswers: textWrongs,
-                promptText: "What is a memory you have of \(memory.personName)?"
-            ))
+            if !memory.text.isEmpty {
+                let shortText = String(memory.text.prefix(60))
+                let otherTexts = textMemories
+                    .filter { $0.id != memory.id }
+                    .map { String($0.text.prefix(60)) }
+                let textWrongs = pickWrong(from: otherTexts, fallback: fallbackFacts, excluding: shortText, count: 3)
+                questions.append(QuizQuestion(
+                    type: .memoryRecall,
+                    person: placeholder,
+                    correctAnswer: shortText,
+                    wrongAnswers: textWrongs,
+                    promptText: "What is a memory you have of \(memory.personName)?"
+                ))
+            }
         }
 
         // Mix: up to 30% memory questions, rest normal
-        let memoryQs = questions.filter { $0.type == .memoryWho || $0.type == .memoryRecall }.shuffled()
-        let normalQs  = questions.filter { $0.type != .memoryWho && $0.type != .memoryRecall }.shuffled()
+        let memoryTypes: Set<QuizQuestionType> = [.memoryWho, .memoryRecall, .voiceWho, .voiceWhen, .voicePeople]
+        let memoryQs = questions.filter { memoryTypes.contains($0.type) }.shuffled()
+        let normalQs  = questions.filter { !memoryTypes.contains($0.type) }.shuffled()
         let memorySlots = min(memoryQs.count, max(1, count / 3))
         let normalSlots = min(normalQs.count, count - memorySlots)
         let combined = (Array(normalQs.prefix(normalSlots)) + Array(memoryQs.prefix(memorySlots))).shuffled()
         return Array(combined.prefix(count))
+    }
+
+    private static func displayMonthYear(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM yyyy"
+        return f.string(from: date)
     }
 
     private static func pickWrong(from pool: [String], fallback: [String], excluding correct: String, count: Int) -> [String] {

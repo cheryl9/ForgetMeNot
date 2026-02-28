@@ -538,7 +538,7 @@ struct MemoryCardEditView: View {
             }
         }
         .fullScreenCover(isPresented: $showPhotoPicker) {
-            ImagePicker(image: $selectedImage)
+            CameraPicker(image: $selectedImage, sourceType: .photoLibrary)
                 .ignoresSafeArea()
         }
         .alert("Delete Memory?", isPresented: $showDeleteConfirm) {
@@ -602,11 +602,21 @@ struct MemoryCardEditView: View {
         }
         
         #if os(iOS)
-        AVAudioSession.sharedInstance().requestRecordPermission { granted in
-            if granted {
-                performRecording()
-            } else {
-                print("Mic permission denied")
+        if #available(iOS 17.0, macCatalyst 17.0, *) {
+            AVAudioApplication.requestRecordPermission { granted in
+                if granted {
+                    performRecording()
+                } else {
+                    print("Mic permission denied")
+                }
+            }
+        } else {
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                if granted {
+                    performRecording()
+                } else {
+                    print("Mic permission denied")
+                }
             }
         }
         #else

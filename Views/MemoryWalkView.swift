@@ -67,7 +67,7 @@ struct MemoryWalkView: View {
                         }
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, geo.safeAreaInsets.top + 32)
+                    .padding(.top, geo.safeAreaInsets.top + 40)
                     .padding(.bottom, 24)
 
                     // ── Room Cards ──
@@ -85,6 +85,8 @@ struct MemoryWalkView: View {
                                             .environmentObject(onboardingStore)
                                     ) {
                                         RoomCardView(room: room, index: idx)
+                                            .frame(maxWidth: .infinity)
+                                            .contentShape(Rectangle())
                                             .scaleEffect(appeared ? 1 : 0.92)
                                             .opacity(appeared ? 1 : 0)
                                             .animation(
@@ -151,65 +153,63 @@ struct RoomCardView: View {
     @State private var loadedImage: UIImage?
 
     var body: some View {
-        GeometryReader { geo in
-            let cardHeight = min(280, max(180, geo.size.width * 0.48))
+        let cardHeight: CGFloat = 240
 
-            ZStack(alignment: .bottomLeading) {
-                Group {
-                    if let img = loadedImage {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Rectangle()
-                            .fill(Color(hex: "e8e0d8"))
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(Color(hex: "b0a090"))
-                            )
-                    }
+        ZStack(alignment: .bottomLeading) {
+            Group {
+                if let img = loadedImage {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Rectangle()
+                        .fill(Color(hex: "e8e0d8"))
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 40))
+                                .foregroundColor(Color(hex: "b0a090"))
+                        )
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: cardHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 24))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: cardHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
 
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.6)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.6)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 24))
 
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(room.roomName)
-                            .font(.custom("Snell Roundhand", size: 28))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
-                        if !room.anchors.isEmpty {
-                            HStack(spacing: 5) {
-                                Image(systemName: "mappin.circle.fill")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(Color(hex: "a8c5a0"))
-                                Text("\(room.anchors.count) reminder\(room.anchors.count == 1 ? "" : "s")")
-                                    .font(.custom("Georgia", size: 14))
-                                    .foregroundColor(.white.opacity(0.9))
-                            }
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(room.roomName)
+                        .font(.custom("Snell Roundhand", size: 28))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
+                    if !room.anchors.isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(hex: "a8c5a0"))
+                            Text("\(room.anchors.count) reminder\(room.anchors.count == 1 ? "" : "s")")
+                                .font(.custom("Georgia", size: 14))
+                                .foregroundColor(.white.opacity(0.9))
                         }
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right.circle.fill")
-                        .font(.system(size: 26))
-                        .foregroundColor(.white.opacity(0.75))
-                        .padding(.bottom, 2)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 18)
+                Spacer()
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.system(size: 26))
+                    .foregroundColor(.white.opacity(0.75))
+                    .padding(.bottom, 2)
             }
-            .frame(height: cardHeight)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 18)
         }
-        .frame(height: 260)
+        .frame(height: cardHeight)
+        .contentShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: 8)
         .onAppear {
             DispatchQueue.global(qos: .userInitiated).async {
@@ -682,7 +682,7 @@ struct RoomSetupView: View {
             }
         }
         .fullScreenCover(isPresented: $showCamera) {
-            ImagePicker(image: $capturedImage)
+            CameraPicker(image: $capturedImage)
                 .ignoresSafeArea()
         }
         .onChange(of: capturedImage) { _, img in
