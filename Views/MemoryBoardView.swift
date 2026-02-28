@@ -371,7 +371,7 @@ struct MemoryCardEditView: View {
     var body: some View {
         ZStack {
             Color(hex: "f7f3ee").ignoresSafeArea()
-            Image("garden_background")
+            Image("rock_background")
                 .resizable().scaledToFill().ignoresSafeArea().opacity(0.06)
 
             VStack(spacing: 0) {

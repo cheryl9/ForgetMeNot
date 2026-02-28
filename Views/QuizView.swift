@@ -40,7 +40,7 @@ struct QuizView: View {
             let topPad: CGFloat = max(geo.safeAreaInsets.top, 50)
             
             ZStack {
-                Image("garden_background")
+                Image("rock_background")
                     .resizable().scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)
                     .clipped().ignoresSafeArea()
@@ -488,7 +488,7 @@ struct MemoryPromptView: View {
     var body: some View {
         ZStack {
             Color(hex: "f7f3ee").ignoresSafeArea()
-            Image("garden_background")
+            Image("rock_background")
                 .resizable().scaledToFill().ignoresSafeArea().opacity(0.08)
             
             VStack(spacing: 0) {

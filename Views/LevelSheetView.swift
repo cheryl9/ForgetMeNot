@@ -15,7 +15,7 @@ struct LevelEntryView: View {
 
     var body: some View {
         ZStack {
-            Image("garden_background")
+            Image("rock_background")
                 .resizable()
                 .scaledToFill()
                 .ignoresSafeArea()

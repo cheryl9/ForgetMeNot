@@ -17,7 +17,7 @@ struct RegisterView: View {
             let logoSize = max(110, min(150, cardWidth * 0.30))
 
             ZStack {
-                Image("garden_background")
+                Image("rock_background")
                     .resizable()
                     .scaledToFill()
                     .ignoresSafeArea()

@@ -18,7 +18,7 @@ struct MyGardenView: View {
             
             ZStack {
                 // Background
-                Image("garden_background")
+                Image("rock_background")
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)

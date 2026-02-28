@@ -96,7 +96,7 @@ struct OnboardingView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Image("garden_background")
+                Image("rock_background")
                     .resizable()
                     .scaledToFill()
                     .ignoresSafeArea()
