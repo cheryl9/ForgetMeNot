@@ -3,15 +3,18 @@ import SwiftUI
 struct ShopView: View {
     @EnvironmentObject var shopStore: ShopStore
     @EnvironmentObject var dropletStore: DropletStore
+    @EnvironmentObject var musicPlayer: AmbientMusicPlayer
     @Environment(\.dismiss) var dismiss
 
     @State private var selectedItem: ShopItem? = nil
     @State private var showInsufficientFunds = false
 
-    let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 5)
-
     var body: some View {
         GeometryReader { geo in
+            let availableWidth = max(240, geo.size.width - 30)
+            let columnCount = min(6, max(2, Int(availableWidth / 150)))
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: columnCount)
+
             ZStack {
                 // Background
                 Image("shop_background")
@@ -26,40 +29,43 @@ struct ShopView: View {
 
                 VStack(spacing: 0) {
                     // Top bar
-                    HStack {
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(Color(hex: "7a6a5a"))
-                                .padding(10)
-                                .background(Circle().fill(Color.white.opacity(0.8)))
+                    ZStack {
+                        HStack {
+                            Button(action: { dismiss() }) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Color(hex: "7a6a5a"))
+                                    .padding(10)
+                                    .background(Circle().fill(Color.white.opacity(0.8)))
+                            }
+                            Spacer()
+                            HStack(spacing: 6) {
+                                Image(systemName: "drop.fill")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 14, weight: .bold))
+                                Text("\(dropletStore.totalDroplets)")
+                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 9)
+                            .background(
+                                Capsule()
+                                    .fill(Color(hex: "FFBEBE"))
+                                    .shadow(color: Color(hex: "f07080").opacity(0.4), radius: 8, x: 0, y: 3)
+                            )
+                            Spacer()
+                            MusicToggleButton(musicPlayer: musicPlayer)
                         }
-                        Spacer()
-                        HStack(spacing: 6) {
-                            Image(systemName: "drop.fill")
-                                .foregroundColor(.white)
-                                .font(.system(size: 14, weight: .bold))
-                            Text("\(dropletStore.totalDroplets)")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 9)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "FFBEBE"))
-                                .shadow(color: Color(hex: "f07080").opacity(0.4), radius: 8, x: 0, y: 3)
-                        )
+
+                        Text("My Garden")
+                            .font(.custom("Snell Roundhand", size: 40))
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color(hex: "5c4a3a"))
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geo.safeAreaInsets.top + 50)
-
-                    // Title
-                     Text("My Garden")
-                        .font(.custom("Snell Roundhand", size: 40))
-                        .fontWeight(.semibold)
-                        .foregroundColor(Color(hex: "5c4a3a"))
-                        .padding(.top, 25)
+                    .padding(.top, geo.safeAreaInsets.top + 32)
+                    .padding(.bottom, 20)
 
                     // Grid
                     ScrollView {

@@ -2,9 +2,8 @@ import SwiftUI
 
 struct MyGardenView: View {
     @EnvironmentObject var shopStore: ShopStore
+    @EnvironmentObject var musicPlayer: AmbientMusicPlayer
     @Environment(\.dismiss) var dismiss
-
-    let columns = Array(repeating: GridItem(.flexible(), spacing: 20), count: 4)
 
     var purchasedItems: [ShopItem] {
         ShopItem.catalog.filter { shopStore.hasPurchased($0) }
@@ -12,6 +11,11 @@ struct MyGardenView: View {
 
     var body: some View {
         GeometryReader { geo in
+            let horizontalPadding: CGFloat = 24
+            let availableWidth = max(240, geo.size.width - (horizontalPadding * 2))
+            let columnCount = min(5, max(2, Int(availableWidth / 135)))
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 20), count: columnCount)
+
             ZStack {
                 // Background
                 Image("garden_background")
@@ -36,21 +40,20 @@ struct MyGardenView: View {
                                 .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
                         }
                         Spacer()
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, geo.safeAreaInsets.top + 32)
-
-                    // Title
-                    VStack(spacing: 4) {
                         Text("My Garden")
                             .font(.custom("Snell Roundhand", size: 40))
                             .fontWeight(.semibold)
                             .foregroundColor(Color(hex: "5c4a3a"))
-                        Text("\(purchasedItems.count) of \(ShopItem.catalog.count) plants collected")
-                            .font(.system(size: 13, design: .rounded))
-                            .foregroundColor(Color(hex: "9a8a7a"))
+                        Spacer()
+                        MusicToggleButton(musicPlayer: musicPlayer)
                     }
-                    .padding(.top, 12)
+                    .padding(.horizontal, 24)
+                    .padding(.top, geo.safeAreaInsets.top + 32)
+
+                    Text("\(purchasedItems.count) of \(ShopItem.catalog.count) plants collected")
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundColor(Color(hex: "9a8a7a"))
+                        .padding(.top, 6)
                     .padding(.bottom, 20)
 
                     if purchasedItems.isEmpty {

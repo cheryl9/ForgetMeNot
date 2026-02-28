@@ -4,6 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var memoryBoardStore: MemoryBoardStore
     @EnvironmentObject var shopStore: ShopStore
+    @EnvironmentObject var musicPlayer: AmbientMusicPlayer
     @Environment(\.dismiss) var dismiss
 
     @State private var showMemoryBoard = false
@@ -35,11 +36,11 @@ struct SettingsView: View {
                             .font(.custom("Snell Roundhand", size: 40))
                             .foregroundColor(Color(hex: "5c4a3a"))
                         Spacer()
-                        Color.clear.frame(width: 40, height: 40)
+                        MusicToggleButton(musicPlayer: musicPlayer)
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, geo.safeAreaInsets.top + 32)
-                    .padding(.bottom, 24)
+                    .padding(.top, geo.safeAreaInsets.top + 90)
+                    .padding(.bottom, 32)
 
                     VStack(spacing: 16) {
                         // Logged in as card
@@ -63,7 +64,7 @@ struct SettingsView: View {
                             }
                             Spacer()
                         }
-                        .padding(16)
+                        .padding(20)
                         .background(RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.8)))
 
                         // Memory Board
@@ -92,10 +93,12 @@ struct SettingsView: View {
         .fullScreenCover(isPresented: $showMemoryBoard) {
             MemoryBoardView()
                 .environmentObject(memoryBoardStore)
+                .environmentObject(musicPlayer)
         }
         .fullScreenCover(isPresented: $showGarden) {
             MyGardenView()
                 .environmentObject(shopStore)
+                .environmentObject(musicPlayer)
         }
         .alert("Log Out", isPresented: $showLogoutConfirm) {
             Button("Log Out", role: .destructive) {

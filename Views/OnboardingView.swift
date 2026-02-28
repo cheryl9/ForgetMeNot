@@ -94,51 +94,56 @@ struct OnboardingView: View {
     let totalSteps = 6
 
     var body: some View {
-        ZStack {
-            Image("garden_background")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-            Color.white.opacity(0.45).ignoresSafeArea()
+        GeometryReader { geo in
+            ZStack {
+                Image("garden_background")
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+                Color.white.opacity(0.45).ignoresSafeArea()
 
-            VStack {
-                HStack(spacing: 8) {
-                    ForEach(0..<totalSteps, id: \.self) { i in
-                        Circle()
-                            .fill(i == currentStep ? Color(hex: "7ba7bc") : Color(hex: "cccccc"))
-                            .frame(width: i == currentStep ? 10 : 7, height: i == currentStep ? 10 : 7)
-                            .animation(.spring(), value: currentStep)
+                ScrollView(showsIndicators: false) {
+                    VStack {
+                        HStack(spacing: 8) {
+                            ForEach(0..<totalSteps, id: \.self) { i in
+                                Circle()
+                                    .fill(i == currentStep ? Color(hex: "7ba7bc") : Color(hex: "cccccc"))
+                                    .frame(width: i == currentStep ? 10 : 7, height: i == currentStep ? 10 : 7)
+                                    .animation(.spring(), value: currentStep)
+                            }
+                        }
+                        .padding(.top, geo.safeAreaInsets.top + 16)
+
+                        Spacer(minLength: 20)
+
+                        Group {
+                            switch currentStep {
+                            case 0:
+                                WelcomeStepView(patientName: $patientName, onNext: { currentStep = 1 })
+                            case 1:
+                                PersonStepView(person: $person1, index: 0, onNext: { currentStep = 2 })
+                            case 2:
+                                PersonStepView(person: $person2, index: 1, onNext: { currentStep = 3 })
+                            case 3:
+                                MemoryStepView(memory: $memory1, index: 0, onNext: { currentStep = 4 })
+                            case 4:
+                                MemoryStepView(memory: $memory2, index: 1, onNext: { currentStep = 5 })
+                            default:
+                                OnboardingDoneView(onFinish: {
+                                    onboardingStore.completeOnboarding(
+                                        patientName: patientName,
+                                        people: [person1, person2],
+                                        memories: [memory1, memory2]
+                                    )
+                                    authManager.requiresOnboarding = false
+                                })
+                            }
+                        }
+
+                        Spacer(minLength: geo.safeAreaInsets.bottom + 24)
                     }
                 }
-                .padding(.top, 60)
-
-                Spacer()
-
-                Group {
-                    switch currentStep {
-                    case 0:
-                        WelcomeStepView(patientName: $patientName, onNext: { currentStep = 1 })
-                    case 1:
-                        PersonStepView(person: $person1, index: 0, onNext: { currentStep = 2 })
-                    case 2:
-                        PersonStepView(person: $person2, index: 1, onNext: { currentStep = 3 })
-                    case 3:
-                        MemoryStepView(memory: $memory1, index: 0, onNext: { currentStep = 4 })
-                    case 4:
-                        MemoryStepView(memory: $memory2, index: 1, onNext: { currentStep = 5 })
-                    default:
-                        OnboardingDoneView(onFinish: {
-                            onboardingStore.completeOnboarding(
-                                patientName: patientName,
-                                people: [person1, person2],
-                                memories: [memory1, memory2]
-                            )
-                            authManager.requiresOnboarding = false
-                        })
-                    }
-                }
-
-                Spacer()
+                .frame(minHeight: geo.size.height)
             }
         }
     }
@@ -180,7 +185,8 @@ struct WelcomeStepView: View {
             }
         }
         .padding(32)
-        .frame(maxWidth: min(420, UIScreen.main.bounds.width - 40))
+        .frame(maxWidth: 560)
+        .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 36)
                 .fill(Color.white.opacity(0.55))
@@ -261,7 +267,8 @@ struct PersonStepView: View {
             }
             .padding(28)
         }
-        .frame(maxWidth: min(420, UIScreen.main.bounds.width - 40))
+        .frame(maxWidth: 560)
+        .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 36)
                 .fill(Color.white.opacity(0.55))
@@ -269,8 +276,9 @@ struct PersonStepView: View {
                 .overlay(RoundedRectangle(cornerRadius: 36).stroke(Color.white.opacity(0.7), lineWidth: 1.5))
                 .shadow(color: .black.opacity(0.10), radius: 30, x: 0, y: 10)
         )
-        .sheet(isPresented: $showPhotoPicker) {
+        .fullScreenCover(isPresented: $showPhotoPicker) {
             ImagePicker(image: $selectedImage)
+                .ignoresSafeArea()
         }
         .onChange(of: selectedImage) {
             guard let img = selectedImage else { return }
@@ -352,7 +360,8 @@ struct MemoryStepView: View {
             }
             .padding(28)
         }
-        .frame(maxWidth: min(420, UIScreen.main.bounds.width - 40))
+        .frame(maxWidth: 560)
+        .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 36)
                 .fill(Color.white.opacity(0.55))
@@ -360,8 +369,9 @@ struct MemoryStepView: View {
                 .overlay(RoundedRectangle(cornerRadius: 36).stroke(Color.white.opacity(0.7), lineWidth: 1.5))
                 .shadow(color: .black.opacity(0.10), radius: 30, x: 0, y: 10)
         )
-        .sheet(isPresented: $showPhotoPicker) {
+        .fullScreenCover(isPresented: $showPhotoPicker) {
             ImagePicker(image: $selectedImage)
+                .ignoresSafeArea()
         }
         .onChange(of: selectedImage) {
             guard let img = selectedImage else { return }
@@ -391,7 +401,8 @@ struct OnboardingDoneView: View {
             OnboardingNextButton(label: "Enter the Garden", enabled: true, action: onFinish)
         }
         .padding(36)
-        .frame(maxWidth: min(420, UIScreen.main.bounds.width - 40))
+        .frame(maxWidth: 560)
+        .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 36)
                 .fill(Color.white.opacity(0.55))

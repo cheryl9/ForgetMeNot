@@ -7,6 +7,7 @@ import UIKit
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var image: UIImage?
     @Environment(\.dismiss) var dismiss
+    var sourceType: UIImagePickerController.SourceType = .photoLibrary
 
     // Max dimension in pixels — keeps file size small, more than enough for display
     static let maxDimension: CGFloat = 800
@@ -15,7 +16,7 @@ struct ImagePicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = .photoLibrary
+        picker.sourceType = sourceType
         picker.allowsEditing = false
         picker.delegate = context.coordinator
         return picker

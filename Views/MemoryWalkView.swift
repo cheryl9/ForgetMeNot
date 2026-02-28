@@ -1,58 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-// ─────────────────────────────────────────────
-// MARK: - UIImage EXIF orientation fix
-// ─────────────────────────────────────────────
-extension UIImage {
-    func fixedOrientation() -> UIImage {
-        guard imageOrientation != .up else { return self }
-        UIGraphicsBeginImageContextWithOptions(size, false, scale)
-        draw(in: CGRect(origin: .zero, size: size))
-        let normalized = UIGraphicsGetImageFromCurrentImageContext() ?? self
-        UIGraphicsEndImageContext()
-        return normalized
-    }
-}
 
-// ─────────────────────────────────────────────
-// MARK: - Image Picker (photo library)
-// ─────────────────────────────────────────────
-struct CameraPicker: UIViewControllerRepresentable {
-    @Binding var image: UIImage?
-    @Environment(\.dismiss) var dismiss
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .photoLibrary
-        picker.delegate = context.coordinator
-        picker.allowsEditing = false
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-        let parent: CameraPicker
-        init(_ parent: CameraPicker) { self.parent = parent }
-
-        func imagePickerController(
-            _ picker: UIImagePickerController,
-            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
-        ) {
-            if let raw = info[.originalImage] as? UIImage {
-                parent.image = raw.fixedOrientation()
-            }
-            parent.dismiss()
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.dismiss()
-        }
-    }
-}
 
 // ─────────────────────────────────────────────
 // MARK: - Memory Walk View
@@ -61,6 +10,8 @@ struct MemoryWalkView: View {
     @EnvironmentObject var memoryWalkStore: MemoryWalkStore
     @EnvironmentObject var onboardingStore: OnboardingStore
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var musicPlayer: AmbientMusicPlayer
+
 
     @State private var showSetup = false
     @State private var appeared = false
@@ -102,17 +53,21 @@ struct MemoryWalkView: View {
 
                         Spacer()
 
-                        Button { showSetup = true } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 44, height: 44)
-                                .background(Circle().fill(Color(hex: "a8c5a0")))
-                                .shadow(color: Color(hex: "a8c5a0").opacity(0.4), radius: 6, x: 0, y: 3)
+                        HStack(spacing: 12) {
+                            MusicToggleButton(musicPlayer: musicPlayer)
+                            
+                            Button { showSetup = true } label: {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Circle().fill(Color(hex: "a8c5a0")))
+                                    .shadow(color: Color(hex: "a8c5a0").opacity(0.4), radius: 6, x: 0, y: 3)
+                            }
                         }
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, geo.safeAreaInsets.top + 30)
+                    .padding(.top, geo.safeAreaInsets.top + 32)
                     .padding(.bottom, 24)
 
                     // ── Room Cards ──
@@ -196,59 +151,65 @@ struct RoomCardView: View {
     @State private var loadedImage: UIImage?
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            Group {
-                if let img = loadedImage {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Rectangle()
-                        .fill(Color(hex: "e8e0d8"))
-                        .overlay(
-                            Image(systemName: "photo")
-                                .font(.system(size: 40))
-                                .foregroundColor(Color(hex: "b0a090"))
-                        )
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 240)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
+        GeometryReader { geo in
+            let cardHeight = min(280, max(180, geo.size.width * 0.48))
 
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.6)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(room.roomName)
-                        .font(.custom("Snell Roundhand", size: 28))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
-                    if !room.anchors.isEmpty {
-                        HStack(spacing: 5) {
-                            Image(systemName: "mappin.circle.fill")
-                                .font(.system(size: 13))
-                                .foregroundColor(Color(hex: "a8c5a0"))
-                            Text("\(room.anchors.count) reminder\(room.anchors.count == 1 ? "" : "s")")
-                                .font(.custom("Georgia", size: 14))
-                                .foregroundColor(.white.opacity(0.9))
-                        }
+            ZStack(alignment: .bottomLeading) {
+                Group {
+                    if let img = loadedImage {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Rectangle()
+                            .fill(Color(hex: "e8e0d8"))
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(Color(hex: "b0a090"))
+                            )
                     }
                 }
-                Spacer()
-                Image(systemName: "chevron.right.circle.fill")
-                    .font(.system(size: 26))
-                    .foregroundColor(.white.opacity(0.75))
-                    .padding(.bottom, 2)
+                .frame(maxWidth: .infinity)
+                .frame(height: cardHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.6)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(room.roomName)
+                            .font(.custom("Snell Roundhand", size: 28))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
+                        if !room.anchors.isEmpty {
+                            HStack(spacing: 5) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(Color(hex: "a8c5a0"))
+                                Text("\(room.anchors.count) reminder\(room.anchors.count == 1 ? "" : "s")")
+                                    .font(.custom("Georgia", size: 14))
+                                    .foregroundColor(.white.opacity(0.9))
+                            }
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundColor(.white.opacity(0.75))
+                        .padding(.bottom, 2)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 18)
+            .frame(height: cardHeight)
         }
+        .frame(height: 260)
         .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: 8)
         .onAppear {
             DispatchQueue.global(qos: .userInitiated).async {
@@ -519,7 +480,7 @@ struct ReminderCardView: View {
     let people: [PersonProfile]
     let onDismiss: () -> Void
 
-    @State private var player: AVAudioPlayer?
+    @State private var player: AudioPlayerWrapper?
     @State private var isPlaying = false
     @State private var appeared = false
 
@@ -649,17 +610,14 @@ struct ReminderCardView: View {
             player?.stop()
             isPlaying = false
         } else if let url = anchor.voiceURL {
-            do {
-                player = try AVAudioPlayer(contentsOf: url)
-                player?.prepareToPlay()
-                player?.play()
-                isPlaying = true
-            } catch {
-                print("ReminderCardView playback error: \(error)")
-            }
+            player = AudioPlayerWrapper(url: url, onFinish: { isPlaying = false })
+            player?.play()
+            isPlaying = true
         }
     }
 }
+
+
 
 // ─────────────────────────────────────────────
 // MARK: - Room Setup View
@@ -724,7 +682,7 @@ struct RoomSetupView: View {
             }
         }
         .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker(image: $capturedImage)
+            ImagePicker(image: $capturedImage)
                 .ignoresSafeArea()
         }
         .onChange(of: capturedImage) { _, img in
@@ -991,7 +949,7 @@ struct AnchorEditSheet: View {
     @State private var audioRecorder: AVAudioRecorder?
     @State private var recordingURL: URL?
     @State private var recordingDone = false
-    @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioPlayer: AudioPlayerWrapper?
     @State private var isPlaying = false
 
     var body: some View {
@@ -1168,11 +1126,7 @@ struct AnchorEditSheet: View {
     }
 
     func startRecording() {
-        AVAudioSession.sharedInstance().requestRecordPermission { granted in
-            guard granted else {
-                print("Mic permission denied")
-                return
-            }
+        let performRecording = {
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("anchor_\(UUID().uuidString).m4a")
             let settings: [String: Any] = [
@@ -1182,6 +1136,15 @@ struct AnchorEditSheet: View {
                 AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
             ]
             do {
+                // Set up audio session for recording
+                let session = AVAudioSession.sharedInstance()
+                do {
+                    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers])
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                } catch {
+                    print("Audio session configured elsewhere, continuing: \(error.localizedDescription)")
+                }
+                
                 let recorder = try AVAudioRecorder(url: url, settings: settings)
                 recorder.prepareToRecord()
                 recorder.record()
@@ -1191,14 +1154,29 @@ struct AnchorEditSheet: View {
                     self.isRecording = true
                     self.recordingDone = false
                 }
-            } catch {
-                print("Recording failed: \(error)")
+                print("✅ Recording started successfully")
+            } catch let error as NSError {
+                print("❌ Recording failed: \(error.localizedDescription)")
+                print("   Error code: \(error.code), domain: \(error.domain)")
             }
         }
+        
+        #if os(iOS)
+        AVAudioApplication.requestRecordPermission { granted in
+            if granted {
+                performRecording()
+            } else {
+                print("Mic permission denied")
+            }
+        }
+        #else
+        performRecording()
+        #endif
     }
 
     func stopRecording() {
         audioRecorder?.stop()
+        audioRecorder = nil
         isRecording = false
         recordingDone = true
     }
@@ -1208,14 +1186,12 @@ struct AnchorEditSheet: View {
             audioPlayer?.stop()
             isPlaying = false
         } else if let url = recordingURL {
-            do {
-                audioPlayer = try AVAudioPlayer(contentsOf: url)
-                audioPlayer?.prepareToPlay()
-                audioPlayer?.play()
-                isPlaying = true
-            } catch {
-                print("AnchorEditSheet playback error: \(error)")
-            }
+            print("Playing audio from: \(url.lastPathComponent)")
+            audioPlayer = AudioPlayerWrapper(url: url, onFinish: { isPlaying = false })
+            audioPlayer?.play()
+            isPlaying = true
+        } else {
+            print("No recording URL available")
         }
     }
 }

@@ -11,6 +11,7 @@ import SwiftUI
 class AmbientMusicPlayer: ObservableObject {
     @Published var isPlaying = false
     private var player: AVAudioPlayer?
+    private var audioSessionConfigured = false
 
     func toggle() {
         isPlaying ? pause() : play()
@@ -34,6 +35,19 @@ class AmbientMusicPlayer: ObservableObject {
     }
 
     private func prepare() {
+        // Configure audio session only once
+        if !audioSessionConfigured {
+            do {
+                try AVAudioSession.sharedInstance().setCategory(
+                    .playback, mode: .default, options: [.mixWithOthers]
+                )
+                audioSessionConfigured = true
+            } catch {
+                print("AmbientMusicPlayer session: \(error.localizedDescription)")
+            }
+   
+        }
+        
         let name = "ambient_music"
         let url = Bundle.main.url(forResource: name, withExtension: "mp3")
             ?? Bundle.main.url(forResource: name, withExtension: "m4a")
@@ -41,18 +55,15 @@ class AmbientMusicPlayer: ObservableObject {
             print("AmbientMusicPlayer: '\(name).mp3/.m4a' not found in bundle.")
             return
         }
+        
         do {
-            // .mixWithOthers keeps other system audio (calls, etc.) alive
-            try AVAudioSession.sharedInstance().setCategory(
-                .playback, mode: .default, options: .mixWithOthers
-            )
-            try AVAudioSession.sharedInstance().setActive(true)
             player = try AVAudioPlayer(contentsOf: url)
-            player?.numberOfLoops = -1   // loop forever
-            player?.volume = 0.4
+            player?.numberOfLoops = -1
+            player?.volume = 0.3
             player?.prepareToPlay()
+            print("AmbientMusicPlayer: ready")
         } catch {
-            print("AmbientMusicPlayer error: \(error)")
+            print("AmbientMusicPlayer: \(error.localizedDescription)")
         }
     }
 }

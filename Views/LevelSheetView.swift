@@ -9,6 +9,7 @@ struct LevelEntryView: View {
     @EnvironmentObject var levelStore: LevelStore
     @EnvironmentObject var memoryBoardStore: MemoryBoardStore
     @EnvironmentObject var dropletStore: DropletStore
+    @EnvironmentObject var musicPlayer: AmbientMusicPlayer
     @Environment(\.dismiss) var dismiss
     @State private var goToQuiz = false
 
@@ -19,11 +20,17 @@ struct LevelEntryView: View {
                 .scaledToFill()
                 .ignoresSafeArea()
             Color.white.opacity(0.5).ignoresSafeArea()
+            
             VStack(spacing: 32) {
 
-                Text("Level \(level)")
-                    .font(.custom("Snell Roundhand", size: 32))
-                    .foregroundColor(Color(hex: "7ba7bc"))
+                HStack {
+                    Spacer()
+                    Text("Level \(level)")
+                        .font(.custom("Snell Roundhand", size: 32))
+                        .foregroundColor(Color(hex: "7ba7bc"))
+                    Spacer()
+                    MusicToggleButton(musicPlayer: musicPlayer)
+                }
 
                 Button {
                     goToQuiz = true
@@ -36,7 +43,7 @@ struct LevelEntryView: View {
                             .fontWeight(.semibold)
                     }
                     .foregroundColor(.white)
-                    .frame(width: 200)
+                    .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
                         Capsule()
@@ -54,7 +61,8 @@ struct LevelEntryView: View {
                         .foregroundColor(Color(hex: "aaaaaa"))
                 }
             }
-            .padding(40)
+            .padding(20)
+            .frame(width: 560)
             .background(
                 RoundedRectangle(cornerRadius: 36)
                     .fill(Color.white.opacity(0.7))
@@ -62,7 +70,6 @@ struct LevelEntryView: View {
                     .overlay(RoundedRectangle(cornerRadius: 36).stroke(Color.white.opacity(0.6), lineWidth: 1.5))
                     .shadow(color: .black.opacity(0.1), radius: 24, x: 0, y: 10)
             )
-            .padding(.horizontal, 40)
         }
         .fullScreenCover(isPresented: $goToQuiz) {
             // FIX: pass onExitToHome through so "Back to Garden" dismisses all the way to HomeView

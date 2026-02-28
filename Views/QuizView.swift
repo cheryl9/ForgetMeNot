@@ -5,45 +5,47 @@ import AVFoundation
 struct QuizView: View {
     let level: Int
     let onExitToHome: (() -> Void)?
-
+    
     @EnvironmentObject var memoryStore: MemoryStore
     @EnvironmentObject var onboardingStore: OnboardingStore
     @EnvironmentObject var levelStore: LevelStore
     @EnvironmentObject var memoryBoardStore: MemoryBoardStore
     @EnvironmentObject var dropletStore: DropletStore
     @Environment(\.dismiss) var dismiss
-
+    @EnvironmentObject var musicPlayer: AmbientMusicPlayer
+    
     @State private var questions: [QuizQuestion] = []
     @State private var currentIndex = 0
     @State private var selectedAnswer: String? = nil
     @State private var score = 0
     @State private var quizComplete = false
-    @State private var appeared = false
     @State private var dropletsEarned = 0
     @State private var showDropletAnimation = false
     @State private var showMemoryPrompt = false
     @State private var answeredWrong: [QuizQuestion] = []
-
+    
     let questionCount = 8
-
+    
     var current: QuizQuestion? {
         guard currentIndex < questions.count else { return nil }
         return questions[currentIndex]
     }
-
+    
     var body: some View {
         GeometryReader { geo in
             let isLandscape = geo.size.width > geo.size.height
             let isIPad = geo.size.width >= 768
             let contentWidth: CGFloat = isIPad ? min(geo.size.width * 0.82, 760) : geo.size.width
-
+            // Use a fixed top padding so it works in both Playgrounds and device
+            let topPad: CGFloat = max(geo.safeAreaInsets.top, 50)
+            
             ZStack {
                 Image("garden_background")
                     .resizable().scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)
                     .clipped().ignoresSafeArea()
                 Color.white.opacity(0.45).ignoresSafeArea()
-
+                
                 if quizComplete {
                     ScrollView {
                         QuizCompleteView(
@@ -57,23 +59,21 @@ struct QuizView: View {
                     }
                     .frame(width: contentWidth)
                     .frame(maxWidth: .infinity)
-
+                    
                 } else if let q = current {
                     if isLandscape {
                         HStack(alignment: .center, spacing: 0) {
                             VStack(spacing: 0) {
                                 topBar
                                     .padding(.horizontal, 20)
-                                    .padding(.top, 14)
+                                    .padding(.top, topPad)
                                 Spacer(minLength: 8)
                                 questionCard(q: q, imgSize: 90, fontSize: 16)
                                     .padding(.horizontal, 20)
-                                    .scaleEffect(appeared ? 1 : 0.92)
-                                    .opacity(appeared ? 1 : 0)
                                 Spacer(minLength: 8)
                             }
                             .frame(width: contentWidth * 0.48)
-
+                            
                             VStack {
                                 Spacer()
                                 answerGrid(q: q, columns: 1)
@@ -84,29 +84,34 @@ struct QuizView: View {
                         }
                         .frame(width: contentWidth, height: geo.size.height)
                         .frame(maxWidth: .infinity)
-
+                        
                     } else {
-                        VStack(spacing: 0) {
-                            topBar
-                                .padding(.horizontal, 20)
-                                .padding(.top, geo.safeAreaInsets.top + 16)
-                                .padding(.bottom, 12)
-                            Spacer(minLength: 0)
-                            questionCard(q: q, imgSize: isIPad ? 160 : 120, fontSize: isIPad ? 22 : 18)
-                                .padding(.horizontal, 20)
-                                .scaleEffect(appeared ? 1 : 0.92)
-                                .opacity(appeared ? 1 : 0)
-                            Spacer(minLength: 0)
-                            answerGrid(q: q, columns: 2)
-                                .padding(.horizontal, 20)
-                                // FIX: was .padding(.bottom:  — colon typo
-                                .padding(.bottom, (geo.safeAreaInsets.bottom > 0 ? geo.safeAreaInsets.bottom : 20) + (isIPad ? 32 : 16))
+                        HStack(spacing: 0) {
+                            Spacer()
+                            VStack(spacing: 0) {
+                                topBar
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, topPad)
+                                    .padding(.bottom, 12)
+                                
+                                ScrollView {
+                                    VStack(spacing: 24) {
+                                        questionCard(q: q, imgSize: isIPad ? 160 : 120, fontSize: isIPad ? 22 : 18)
+                                            .padding(.horizontal, 20)
+                                        
+                                        answerGrid(q: q, columns: 2)
+                                            .padding(.horizontal, 20)
+                                            .padding(.bottom, max(geo.safeAreaInsets.bottom, 20) + (isIPad ? 32 : 16))
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: contentWidth)
+                            .frame(height: geo.size.height)
+                            Spacer()
                         }
-                        .frame(width: contentWidth)
                         .frame(maxWidth: .infinity)
-                        .frame(height: geo.size.height)
                     }
-
+                    
                 } else {
                     // Not enough people
                     VStack(spacing: 20) {
@@ -140,17 +145,16 @@ struct QuizView: View {
                 memoryEntries: memoryBoardStore.entries,
                 count: questionCount
             )
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { appeared = true }
         }
         .sheet(isPresented: $showMemoryPrompt) {
             MemoryPromptView(questions: answeredWrong) { memoryBoardStore.add($0) }
         }
     }
-
+    
     func backToGarden() {
         if let cb = onExitToHome { cb() } else { dismiss() }
     }
-
+    
     // MARK: - Top Bar
     var topBar: some View {
         HStack {
@@ -160,40 +164,42 @@ struct QuizView: View {
                     .foregroundColor(Color(hex: "aaaaaa"))
             }
             .frame(width: 44, height: 44)
-
+            
             Spacer()
-
+            
             HStack(spacing: 6) {
                 ForEach(0..<questions.count, id: \.self) { i in
                     Circle()
                         .fill(
                             i < currentIndex  ? Color(hex: "a8c5a0") :
-                            i == currentIndex ? Color(hex: "7ba7bc") :
-                                                Color(hex: "dddddd")
+                                i == currentIndex ? Color(hex: "7ba7bc") :
+                                Color(hex: "dddddd")
                         )
                         .frame(width: 8, height: 8)
                 }
             }
-
+            
             Spacer()
-
-            HStack(spacing: 4) {
-                Text("💧")
-                    .font(.system(size: 18))
-                    .scaleEffect(showDropletAnimation ? 1.4 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.4), value: showDropletAnimation)
-                Text("\(dropletsEarned)")
-                    .font(.custom("Georgia", size: 15))
-                    .fontWeight(.semibold)
-                    .foregroundColor(Color(hex: "7ba7bc"))
+            
+            HStack(spacing: 8) {
+                MusicToggleButton(musicPlayer: musicPlayer)
+                
+                HStack(spacing: 4) {
+                    Text("💧")
+                        .font(.system(size: 18))
+                    Text("\(dropletsEarned)")
+                        .font(.custom("Georgia", size: 15))
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(hex: "7ba7bc"))
+                }
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.15)))
+                .frame(minWidth: 64)
             }
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.15)))
-            .frame(minWidth: 64)
         }
         .frame(height: 50)
     }
-
+    
     // MARK: - Question Card
     @ViewBuilder
     func questionCard(q: QuizQuestion, imgSize: CGFloat, fontSize: CGFloat) -> some View {
@@ -205,8 +211,7 @@ struct QuizView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 8)
-
-            // Memory image has priority for memory questions
+            
             if let memImg = q.memoryImage {
                 Image(uiImage: memImg)
                     .resizable().scaledToFill()
@@ -232,8 +237,7 @@ struct QuizView: View {
                     )
                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
             }
-
-            // Badge for memory-board questions
+            
             if q.type == .memoryWho || q.type == .memoryRecall {
                 HStack(spacing: 4) {
                     Image(systemName: "pin.fill").font(.system(size: 10))
@@ -254,7 +258,7 @@ struct QuizView: View {
                 .shadow(color: .black.opacity(0.08), radius: 20, x: 0, y: 8)
         )
     }
-
+    
     // MARK: - Answer Grid
     @ViewBuilder
     func answerGrid(q: QuizQuestion, columns: Int) -> some View {
@@ -268,43 +272,39 @@ struct QuizView: View {
                 )
             }
         }
+        // Lock the grid height so it never shifts when colors change
+        .fixedSize(horizontal: false, vertical: true)
     }
-
+    
     func answerState(for choice: String, correct: String) -> AnswerButton.AnswerState {
         guard let selected = selectedAnswer else { return .idle }
         if choice == correct { return .correct }
         if choice == selected { return .wrong }
         return .idle
     }
-
+    
     func selectAnswer(_ choice: String, correct: String) {
         guard selectedAnswer == nil else { return }
         selectedAnswer = choice
         if choice == correct {
             score += 1
             dropletsEarned += 1
-            showDropletAnimation = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showDropletAnimation = false }
         } else {
             if let q = current { answeredWrong.append(q) }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { advanceQuestion() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            advanceQuestion()
+        }
     }
-
+    
     func advanceQuestion() {
         if currentIndex + 1 < questions.count {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                currentIndex += 1
-                selectedAnswer = nil
-                appeared = false
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation { appeared = true }
-            }
+            currentIndex += 1
+            selectedAnswer = nil
         } else {
             levelStore.completeLevel(level)
             dropletStore.add(dropletsEarned)
-            withAnimation { quizComplete = true }
+            quizComplete = true
         }
     }
 }
@@ -315,8 +315,7 @@ struct AnswerButton: View {
     let text: String
     let state: AnswerState
     let action: () -> Void
-    @State private var pressed = false
-
+    
     var bgColor: Color {
         switch state {
         case .idle:    return Color(hex: "d8eaf8")
@@ -325,12 +324,11 @@ struct AnswerButton: View {
         }
     }
     var textColor: Color { state == .idle ? Color(hex: "555577") : .white }
-
+    
     var body: some View {
         Button(action: {
             guard state == .idle else { return }
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) { pressed = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { pressed = false; action() }
+            action()
         }) {
             Text(text)
                 .font(.custom("Georgia", size: 15))
@@ -338,7 +336,8 @@ struct AnswerButton: View {
                 .foregroundColor(textColor)
                 .multilineTextAlignment(.center)
                 .padding(.vertical, 16).padding(.horizontal, 12)
-                .frame(maxWidth: .infinity).frame(minHeight: 60)
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
                 .background(
                     Capsule()
                         .fill(bgColor)
@@ -346,8 +345,6 @@ struct AnswerButton: View {
                         .shadow(color: bgColor.opacity(0.4), radius: 6, x: 0, y: 3)
                 )
         }
-        .scaleEffect(pressed ? 0.93 : 1.0)
-        .animation(.spring(response: 0.25, dampingFraction: 0.5), value: state)
         .disabled(state != .idle)
     }
 }
@@ -359,17 +356,17 @@ struct QuizCompleteView: View {
     let total: Int
     let onDone: () -> Void
     let onMemoryBoard: () -> Void
-
+    
     var isPerfect: Bool { score == total }
-
+    
     var message: String {
         let r = Double(score) / Double(max(total, 1))
-        if r == 1.0 { return "Perfect! All memories recalled! 🌸" }
-        if r >= 0.75 { return "Great job! Keep it up! 🌷" }
-        if r >= 0.5  { return "Good effort! Let's try again! 🌱" }
-        return "Keep practicing, you're doing great! 💪"
+        if r == 1.0 { return "Perfect! All memories recalled!" }
+        if r >= 0.75 { return "Great job! Keep it up!" }
+        if r >= 0.5  { return "Good effort! Let's try again!" }
+        return "Keep practicing, you're doing great!"
     }
-
+    
     var body: some View {
         VStack(spacing: 20) {
             Text("Quiz Complete!")
@@ -388,12 +385,12 @@ struct QuizCompleteView: View {
             }
             .padding(.horizontal, 18).padding(.vertical, 9)
             .background(Capsule().fill(Color(hex: "7ba7bc").opacity(0.12)))
-
+            
             Text(message)
                 .font(.custom("Georgia", size: 15))
                 .foregroundColor(Color(hex: "888888"))
                 .multilineTextAlignment(.center)
-
+            
             VStack(spacing: 10) {
                 Button(action: onDone) {
                     Text("Back to Garden")
@@ -436,29 +433,29 @@ struct QuizCompleteView: View {
     }
 }
 
-// MARK: - Memory Prompt View (post-quiz, shown when questions were answered wrong)
+// MARK: - Memory Prompt View
 struct MemoryPromptView: View {
     @Environment(\.dismiss) var dismiss
     let questions: [QuizQuestion]
     let onSave: (MemoryBoardEntry) -> Void
-
+    
     @State private var text = ""
     @State private var selectedImage: UIImage?
     @State private var showPhotoPicker = false
     @State private var selectedPersonName = ""
-
+    
     var uniqueNames: [String] {
         Array(Set(questions.map { $0.person.name })).filter { !$0.isEmpty }
     }
-
+    
     var canSave: Bool { !text.isEmpty }
-
+    
     var body: some View {
         ZStack {
             Color(hex: "f7f3ee").ignoresSafeArea()
             Image("garden_background")
                 .resizable().scaledToFill().ignoresSafeArea().opacity(0.08)
-
+            
             VStack(spacing: 0) {
                 HStack {
                     Spacer()
@@ -467,9 +464,9 @@ struct MemoryPromptView: View {
                         .foregroundColor(Color(hex: "aaaaaa"))
                         .padding(.horizontal, 24).padding(.top, 20)
                 }
-
+                
                 Spacer()
-
+                
                 VStack(spacing: 20) {
                     VStack(spacing: 6) {
                         Text("🌿").font(.system(size: 36))
@@ -481,7 +478,7 @@ struct MemoryPromptView: View {
                             .foregroundColor(Color(hex: "9a8a7a"))
                             .multilineTextAlignment(.center)
                     }
-
+                    
                     if !uniqueNames.isEmpty {
                         VStack(spacing: 8) {
                             Text("About who?")
@@ -497,8 +494,8 @@ struct MemoryPromptView: View {
                                                 .padding(.horizontal, 16).padding(.vertical, 8)
                                                 .background(
                                                     Capsule().fill(selectedPersonName == name
-                                                        ? Color(hex: "7ba7bc")
-                                                        : Color(hex: "7ba7bc").opacity(0.12))
+                                                                   ? Color(hex: "7ba7bc")
+                                                                   : Color(hex: "7ba7bc").opacity(0.12))
                                                 )
                                         }
                                     }
@@ -507,8 +504,7 @@ struct MemoryPromptView: View {
                             }
                         }
                     }
-
-                    // Optional photo
+                    
                     Button { showPhotoPicker = true } label: {
                         if let img = selectedImage {
                             Image(uiImage: img)
@@ -530,13 +526,13 @@ struct MemoryPromptView: View {
                                 )
                         }
                     }
-
+                    
                     TextField("Write your memory here…", text: $text, axis: .vertical)
                         .font(.custom("Georgia", size: 16))
                         .foregroundColor(Color(hex: "333333"))
                         .lineLimit(3...5).padding(16)
                         .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "ede8e0")))
-
+                    
                     Button {
                         var entry = MemoryBoardEntry()
                         entry.text = text
@@ -556,28 +552,31 @@ struct MemoryPromptView: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
                                     .fill(canSave
-                                        ? LinearGradient(colors: [Color(hex: "7ba7bc"), Color(hex: "a8c5a0")], startPoint: .leading, endPoint: .trailing)
-                                        : LinearGradient(colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
+                                          ? LinearGradient(colors: [Color(hex: "7ba7bc"), Color(hex: "a8c5a0")], startPoint: .leading, endPoint: .trailing)
+                                          : LinearGradient(colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
                             )
                     }
                     .disabled(!canSave)
                 }
                 .padding(.horizontal, 32)
                 .frame(maxWidth: 500)
-
+                
                 Spacer()
             }
         }
-        .sheet(isPresented: $showPhotoPicker) { ImagePicker(image: $selectedImage) }
+        .fullScreenCover(isPresented: $showPhotoPicker) {
+            ImagePicker(image: $selectedImage)
+                .ignoresSafeArea()
+        }
     }
 }
 
-// MARK: - Voice Player View (reusable)
+// MARK: - Voice Player View
 struct VoicePlayerView: View {
     let voiceData: Data?
     @State private var player: AVAudioPlayer?
     @State private var isPlaying = false
-
+    
     var body: some View {
         HStack(spacing: 16) {
             Button { togglePlay() } label: {
@@ -592,7 +591,7 @@ struct VoicePlayerView: View {
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(hex: "e8f4f8")))
     }
-
+    
     func togglePlay() {
         if isPlaying {
             player?.stop()
@@ -600,14 +599,14 @@ struct VoicePlayerView: View {
         } else {
             guard let data = voiceData else { return }
             do {
-                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-                try AVAudioSession.sharedInstance().setActive(true)
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
                 player = try AVAudioPlayer(data: data)
                 player?.prepareToPlay()
                 player?.play()
                 isPlaying = true
             } catch {
-                print("VoicePlayerView: playback failed: \(error)")
+                print("VoicePlayerView playback: \(error.localizedDescription)")
             }
         }
     }

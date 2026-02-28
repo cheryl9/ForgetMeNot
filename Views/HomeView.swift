@@ -37,6 +37,7 @@ struct HomeView: View {
         (0.38, 0.60),
         (0.43, 0.52),
         (0.48, 0.45),
+        (0.52, 0.35),
     ]
 
     var body: some View {

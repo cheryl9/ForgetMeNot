@@ -59,108 +59,136 @@ class MemoryBoardStore: ObservableObject {
 struct MemoryBoardView: View {
     @EnvironmentObject var memoryBoardStore: MemoryBoardStore
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var musicPlayer: AmbientMusicPlayer
 
     @State private var showAddSheet = false
     @State private var editingEntry: MemoryBoardEntry? = nil
+    @State private var showDeleteConfirm = false
+    @State private var entryToDelete: MemoryBoardEntry? = nil
 
     private let rotations: [Double] = [-2.0, 1.5, -1.0, 2.0, -1.5, 1.0, -2.0, 1.5]
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-    ]
-
     var body: some View {
-        ZStack {
-            Image("memory_wall")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
+        GeometryReader { geo in
+            let availableWidth = max(220, geo.size.width - 16)
+            let columnCount = min(4, max(2, Int(availableWidth / 150)))
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: columnCount)
 
-            Color.black.opacity(0.18)
-                .ignoresSafeArea()
+            ZStack {
+                Image("memory_wall")
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
 
-            VStack(spacing: 0) {
+                Color.black.opacity(0.18)
+                    .ignoresSafeArea()
 
-                // ─── HEADER ───
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(Circle().fill(Color.black.opacity(0.3)))
-                    }
+                VStack(spacing: 0) {
 
-                    Spacer()
-
-                    Text("Memory Board")
-                        .font(.custom("Snell Roundhand", size: 32))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
-
-                    Spacer()
-
-                    Button { showAddSheet = true } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(Circle().fill(Color(hex: "a8c5a0")))
-                            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 120)
-                .padding(.bottom, 20)
-
-                // ─── SCROLLING CONTENT ───
-                ScrollView(.vertical, showsIndicators: false) {
-
-                    if memoryBoardStore.entries.isEmpty {
-                        VStack(spacing: 14) {
-                            Spacer().frame(height: 60)
-
-                            Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 44))
-                                .foregroundColor(.white.opacity(0.6))
-
-                            Text("No memories yet")
-                                .font(.custom("Snell Roundhand", size: 26))
-                                .foregroundColor(.white.opacity(0.9))
-
-                            Text("Tap + to add a photo or voice memory")
-                                .font(.custom("Georgia", size: 14))
-                                .foregroundColor(.white.opacity(0.65))
-                                .multilineTextAlignment(.center)
+                    // ─── HEADER ───
+                    HStack {
+                        Button { dismiss() } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 40, height: 40)
+                                .background(Circle().fill(Color.black.opacity(0.3)))
                         }
-                        .padding(.horizontal, 40)
-                    } else {
-                        LazyVGrid(columns: columns, spacing: 0) {
-                            ForEach(Array(memoryBoardStore.entries.enumerated()), id: \.element.id) { idx, entry in
-                                MemorySignCard(
-                                    entry: entry,
-                                    rotation: rotations[idx % rotations.count]
-                                )
-                                .onTapGesture { editingEntry = entry }
+
+                        Spacer()
+
+                        Text("Memory Board")
+                            .font(.custom("Snell Roundhand", size: geo.size.width > 700 ? 36 : 32))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
+
+                        Spacer()
+
+                        HStack(spacing: 12) {
+                            MusicToggleButton(musicPlayer: musicPlayer)
+                            
+                            Button { showAddSheet = true } label: {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .background(Circle().fill(Color(hex: "a8c5a0")))
+                                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                             }
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.bottom, 60)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, geo.safeAreaInsets.top + 32)
+                    .padding(.bottom, 16)
+
+                    // ─── SCROLLING CONTENT ───
+                    ScrollView(.vertical, showsIndicators: false) {
+
+                        if memoryBoardStore.entries.isEmpty {
+                            VStack(spacing: 14) {
+                                Spacer().frame(height: 60)
+
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .font(.system(size: 44))
+                                    .foregroundColor(.white.opacity(0.6))
+
+                                Text("No memories yet")
+                                    .font(.custom("Snell Roundhand", size: 26))
+                                    .foregroundColor(.white.opacity(0.9))
+
+                                Text("Tap + to add a photo or voice memory")
+                                    .font(.custom("Georgia", size: 14))
+                                    .foregroundColor(.white.opacity(0.65))
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(.horizontal, 40)
+                        } else {
+                            LazyVGrid(columns: columns, spacing: 0) {
+                                ForEach(Array(memoryBoardStore.entries.enumerated()), id: \.element.id) { idx, entry in
+                                    MemorySignCard(
+                                        entry: entry,
+                                        rotation: rotations[idx % rotations.count]
+                                    )
+                                    .onTapGesture { editingEntry = entry }
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            entryToDelete = entry
+                                            showDeleteConfirm = true
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.bottom, geo.safeAreaInsets.bottom + 24)
+                        }
                     }
                 }
             }
         }
         .sheet(isPresented: $showAddSheet) {
-            MemoryCardEditView(entry: MemoryBoardEntry(), isNew: true) {
+            MemoryCardEditView(entry: MemoryBoardEntry(), isNew: true, onSave: {
                 memoryBoardStore.add($0)
-            }
+            })
         }
         .sheet(item: $editingEntry) { entry in
-            MemoryCardEditView(entry: entry, isNew: false) {
+            MemoryCardEditView(entry: entry, isNew: false, onSave: {
                 memoryBoardStore.update($0)
+            }, onDelete: {
+                memoryBoardStore.delete($0)
+            })
+        }
+        .alert("Delete Memory?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let entry = entryToDelete {
+                    memoryBoardStore.delete(entry)
+                    entryToDelete = nil
+                }
             }
+        } message: {
+            Text("This memory will be permanently deleted.")
         }
     }
 }
@@ -172,7 +200,7 @@ struct MemorySignCard: View {
 
     @State private var loadedImage: UIImage?
     @State private var isPlayingVoice = false
-    @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioPlayer: AudioPlayerWrapper?
 
     var body: some View {
         GeometryReader { geo in
@@ -236,6 +264,9 @@ struct MemorySignCard: View {
                 }
             }
         }
+        .onDisappear {
+            audioPlayer?.stop()
+        }
     }
 
     func toggleVoice() {
@@ -243,15 +274,66 @@ struct MemorySignCard: View {
             audioPlayer?.stop()
             isPlayingVoice = false
         } else if let url = VoiceFileStorage.url(for: entry.voiceFilename) {
-            do {
-                audioPlayer = try AVAudioPlayer(contentsOf: url)
-                audioPlayer?.prepareToPlay()
-                audioPlayer?.play()
-                isPlayingVoice = true
-            } catch {
-                print("MemorySignCard playback error: \(error)")
-            }
+            audioPlayer = AudioPlayerWrapper(url: url, onFinish: { isPlayingVoice = false })
+            audioPlayer?.play()
+            isPlayingVoice = true
         }
+    }
+}
+
+// MARK: - Audio Player Wrapper
+class AudioPlayerWrapper: NSObject, AVAudioPlayerDelegate {
+    private var player: AVAudioPlayer?
+    private var onFinish: (() -> Void)?
+    
+    init(url: URL, onFinish: @escaping () -> Void) {
+        super.init()
+        self.onFinish = onFinish
+        do {
+            // Check if file exists first
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                print("Audio file not found at: \(url.path)")
+                return
+            }
+            
+            // Set up audio session - use .playback with .mixWithOthers to allow ambient music
+            let session = AVAudioSession.sharedInstance()
+            do {
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            } catch {
+                // Audio session might be in use - that's okay, continue anyway
+                print("Audio session note: \(error.localizedDescription)")
+            }
+            
+            // Initialize player
+            player = try AVAudioPlayer(contentsOf: url)
+            player?.delegate = self
+            player?.volume = 1.0
+            player?.prepareToPlay()
+            
+            print("Audio prepared: \(url.lastPathComponent), duration: \(player?.duration ?? 0)s")
+        } catch let error as NSError {
+            print("Audio player error: \(error.localizedDescription)")
+        }
+    }
+    
+    func play() {
+        guard let player = player else {
+            print("No player available - player is nil")
+            return
+        }
+        let played = player.play()
+        print("Play called - result: \(played), isPlaying: \(player.isPlaying)")
+    }
+    
+    func stop() {
+        player?.stop()
+    }
+    
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        print("Playback finished - success: \(flag)")
+        onFinish?()
     }
 }
 
@@ -261,23 +343,26 @@ struct MemoryCardEditView: View {
     @State private var entry: MemoryBoardEntry
     let isNew: Bool
     let onSave: (MemoryBoardEntry) -> Void
+    let onDelete: ((MemoryBoardEntry) -> Void)?
 
     @State private var showPhotoPicker = false
     @State private var selectedImage: UIImage?
     @State private var selectedTab: MemoryBoardEntry.EntryType = .photo
+    @State private var showDeleteConfirm = false
 
     // Voice
     @State private var isRecording = false
     @State private var audioRecorder: AVAudioRecorder?
     @State private var recordingURL: URL?
     @State private var recordingDone = false
-    @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioPlayer: AudioPlayerWrapper?
     @State private var isPlaying = false
 
-    init(entry: MemoryBoardEntry, isNew: Bool, onSave: @escaping (MemoryBoardEntry) -> Void) {
+    init(entry: MemoryBoardEntry, isNew: Bool, onSave: @escaping (MemoryBoardEntry) -> Void, onDelete: ((MemoryBoardEntry) -> Void)? = nil) {
         _entry = State(initialValue: entry)
         self.isNew = isNew
         self.onSave = onSave
+        self.onDelete = onDelete
         _selectedTab = State(initialValue: entry.entryType)
     }
 
@@ -300,10 +385,19 @@ struct MemoryCardEditView: View {
                         .font(.custom("Snell Roundhand", size: 26))
                         .foregroundColor(Color(hex: "5c4a3a"))
                     Spacer()
-                    Button("Save") { saveEntry() }
-                        .font(.custom("Georgia", size: 15)).fontWeight(.semibold)
-                        .foregroundColor(canSave ? Color(hex: "a8c5a0") : Color(hex: "cccccc"))
-                        .disabled(!canSave)
+                    HStack(spacing: 12) {
+                        if !isNew {
+                            Button(role: .destructive) { showDeleteConfirm = true } label: {
+                                Image(systemName: "trash")
+                                    .font(.custom("Georgia", size: 15))
+                                    .foregroundColor(Color(hex: "d97070"))
+                            }
+                        }
+                        Button("Save") { saveEntry() }
+                            .font(.custom("Georgia", size: 15)).fontWeight(.semibold)
+                            .foregroundColor(canSave ? Color(hex: "a8c5a0") : Color(hex: "cccccc"))
+                            .disabled(!canSave)
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 56)
@@ -346,6 +440,7 @@ struct MemoryCardEditView: View {
                                     Image(uiImage: img)
                                         .resizable().scaledToFill()
                                         .frame(maxWidth: .infinity).frame(height: 200)
+                                        .clipped()
                                         .clipShape(RoundedRectangle(cornerRadius: 16))
                                         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 3)
                                 } else {
@@ -442,7 +537,19 @@ struct MemoryCardEditView: View {
                 }
             }
         }
-        .sheet(isPresented: $showPhotoPicker) { ImagePicker(image: $selectedImage) }
+        .fullScreenCover(isPresented: $showPhotoPicker) {
+            ImagePicker(image: $selectedImage)
+                .ignoresSafeArea()
+        }
+        .alert("Delete Memory?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                onDelete?(entry)
+                dismiss()
+            }
+        } message: {
+            Text("This memory will be permanently deleted.")
+        }
     }
 
     func saveEntry() {
@@ -459,11 +566,7 @@ struct MemoryCardEditView: View {
     }
 
     func startRecording() {
-        AVAudioSession.sharedInstance().requestRecordPermission { granted in
-            guard granted else {
-                print("Mic permission denied")
-                return
-            }
+        let performRecording = {
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("memory_\(UUID().uuidString).m4a")
             let settings: [String: Any] = [
@@ -473,6 +576,15 @@ struct MemoryCardEditView: View {
                 AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
             ]
             do {
+                // Set up audio session for recording
+                let session = AVAudioSession.sharedInstance()
+                do {
+                    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers])
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                } catch {
+                    print("Audio session configured elsewhere, continuing: \(error.localizedDescription)")
+                }
+                
                 let recorder = try AVAudioRecorder(url: url, settings: settings)
                 recorder.prepareToRecord()
                 recorder.record()
@@ -482,10 +594,24 @@ struct MemoryCardEditView: View {
                     self.isRecording = true
                     self.recordingDone = false
                 }
-            } catch {
-                print("Recording failed: \(error)")
+                print("✅ Recording started successfully")
+            } catch let error as NSError {
+                print("❌ Recording failed: \(error.localizedDescription)")
+                print("   Error code: \(error.code), domain: \(error.domain)")
             }
         }
+        
+        #if os(iOS)
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+            if granted {
+                performRecording()
+            } else {
+                print("Mic permission denied")
+            }
+        }
+        #else
+        performRecording()
+        #endif
     }
 
     func stopRecording() {
@@ -499,14 +625,12 @@ struct MemoryCardEditView: View {
             audioPlayer?.stop()
             isPlaying = false
         } else if let url = recordingURL {
-            do {
-                audioPlayer = try AVAudioPlayer(contentsOf: url)
-                audioPlayer?.prepareToPlay()
-                audioPlayer?.play()
-                isPlaying = true
-            } catch {
-                print("Playback failed: \(error)")
-            }
+            print("Playing audio from: \(url.lastPathComponent)")
+            audioPlayer = AudioPlayerWrapper(url: url, onFinish: { isPlaying = false })
+            audioPlayer?.play()
+            isPlaying = true
+        } else {
+            print("No recording URL available")
         }
     }
 }
